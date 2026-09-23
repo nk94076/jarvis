@@ -35,6 +35,24 @@ JARVIS dobara chalao, to HUD mein **BRAIN: qwen2.5:14b** dikhega.
 - Settings wala model install na ho to JARVIS jo sabse bada model install hai uspar chalta hai.
 - Personality: insaan jaisi baat, Hinglish samajhna, pichhli baaton ka context, na pata ho to seedha bolna.
 
+## 🧬 Self-Learning & Self-Upgrade (v6)
+
+| Bolo | Kya hoga |
+|---|---|
+| `ek skill banao jo bitcoin ka price bataye` | JARVIS khud plugin likhta hai, sandbox mein test karta hai, fail ho to fix karke dobara (3 baar tak) |
+| `kaun si skills hain meri` | Banayi hui skills aur versions |
+| `improve skill bitcoin price taaki rupees mein bataye` | Naya version (test ke baad) |
+| `rollback skill bitcoin price`, `disable skill ...`, `enable skill ...` | Version wapas / band / chalu |
+| `python ka quiz lo`, `apna test lo` | Har chapter ka quiz, score; kamzor chapter dobara seekhta hai |
+| `dashboard kholo` | Learning, scores, skills, success rate, failures, gaps ka page |
+| `kya improve karna chahiye` | Jo kaam nahi kar paya uski list (gap analysis) aur suggestions |
+| `audit adhookmedia.com` | SEO, speed, security, accessibility report |
+| `learning list saaf karo`, `remove javascript from learning` | Pending learning list saaf |
+
+- **Order vs sawaal:** "kya tum ... sakte ho", "...rahoge?" jaise vaakyon par JARVIS pehle samajhta hai ki aap kaam bol rahe ho ya sawaal pooch rahe ho.
+- Skills `JARVIS Data\skills` mein alag files hain; JARVIS apna core code kabhi khud nahi badalta.
+- **`update.bat`** pehle backup banata hai, update ke baad regression test chalata hai, fail ho to purana version khud wapas lata hai. **`rollback.bat`** se kabhi bhi pichla version.
+
 ## 🔄 Update kaise karein
 
 - **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.

@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "5.6"
+VERSION = "6.1"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -24,7 +24,8 @@ CHAT_TURNS = 16                      # baatcheet ke kitne pichhle messages AI ko
 KEEP_ALIVE = "60m"                   # model itni der GPU/RAM mein load rahe (tez jawab)
 TEMPERATURE = 0.6                    # kam = seedha, zyada = creative
 CONTEXT_SIZE = 8192                  # kitna lamba context yaad rakhe           # multi-step kaam ke liye; bada model behtar: "qwen2.5:7b" ya "llama3.1:8b"
-AGENT_MAX_STEPS = 8                  # ek kaam mein zyada se zyada kitne tool steps
+AGENT_MAX_STEPS = 8
+PASS_SCORE = 60                      # self-test mein isse kam score = chapter dobara seekho                  # ek kaam mein zyada se zyada kitne tool steps
 # Aapke coding projects: naam -> folder. "check my jarvis project" bolo
 PROJECTS = {
     "jarvis": str(Path(__file__).resolve().parent.parent),

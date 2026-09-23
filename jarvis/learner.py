@@ -24,6 +24,18 @@ LEARN_FILLER = ["ek kaam karo", "ek kam karo", "internet se", "google se", "lear
                 "maine kaha hai", "maine kaha", "pura", "sab", "kuch", "karna", "hai", "please"]
 
 
+NOT_SUBJECT = {"tum", "tumne", "tumhe", "aap", "main", "mai", "mein", "i", "am", "ok", "now", "rahoge", "karoge",
+               "band", "bare", "baare", "li", "liya", "sad", "hai", "ho", "kya", "agar", "tab", "bhi", "dun", "do"}
+
+
+def valid_subject(subject):
+    """'python', 'google ads', 'machine learning' theek; 'bare mein', 'i am sad learning javascript' nahi."""
+    words = subject.lower().split()
+    if not words or len(words) > 5:
+        return False
+    return not (set(words) & NOT_SUBJECT)
+
+
 def subject_words(part):
     text = part
     for w in sorted(LEARN_FILLER, key=len, reverse=True):
@@ -54,9 +66,15 @@ class Learner:
     # ---------- state ----------
     def _load(self):
         try:
-            return json.loads(LEARN_FILE.read_text(encoding="utf-8"))
+            state = json.loads(LEARN_FILE.read_text(encoding="utf-8"))
         except Exception:
             return {"queue": [], "subjects": {}}
+        bad = [q for q in state.get("queue", []) if not valid_subject(q)]     # purana kachra hatao
+        if bad:
+            state["queue"] = [q for q in state["queue"] if q not in bad]
+            for q in bad:
+                state.get("subjects", {}).pop(q, None)
+        return state
 
     def _save(self):
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -66,11 +84,28 @@ class Learner:
         return self.thread is not None and self.thread.is_alive()
 
     # ---------- commands ----------
+    def clear_queue(self):
+        with self.lock:
+            n = len(self.state["queue"])
+            self.state["queue"] = []
+            self._save()
+        self.stop_flag.set()
+        return f"Done {config.USER_NAME}, I removed {n} pending subjects. Everything already learnt is still saved."
+
+    def remove(self, subject):
+        with self.lock:
+            hit = [q for q in self.state["queue"] if subject in q or q in subject]
+            self.state["queue"] = [q for q in self.state["queue"] if q not in hit]
+            self._save()
+        if not hit:
+            return f"{config.USER_NAME}, {subject} is not in my learning list."
+        return f"Removed {', '.join(hit)} from my learning list, {config.USER_NAME}."
+
     def start(self, subject):
         s = config.USER_NAME
         subject = subject.strip()
-        if not subject:
-            return f"What should I learn, {s}?"
+        if not valid_subject(subject):
+            return f"{s}, I am not sure what to learn. Say it clearly, for example: learn Python."
         with self.lock:
             subj = self.state["subjects"].get(subject)
             if subj and subj.get("done_all"):
@@ -174,17 +209,76 @@ class Learner:
             if chapter in subj["done"]:
                 continue
             self._learn_chapter(subject, chapter)
+            score = self._quiz_chapter(subject, chapter)
+            if score < config.PASS_SCORE:                 # kamzor: aur gehraai se dobara seekho
+                self._learn_chapter(subject, chapter, deep=True)
+                score = max(score, self._quiz_chapter(subject, chapter))
             with self.lock:
+                subj.setdefault("scores", {})[chapter] = score
                 subj["done"].append(chapter)
                 self._save()
         subj["done_all"] = True
         subj["finished"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        scores = subj.get("scores", {})
+        subj["score"] = round(sum(scores.values()) / len(scores)) if scores else None
         self._save()
         return True
 
-    def _learn_chapter(self, subject, chapter):
+    # ---------- self test ----------
+    def _quiz_chapter(self, subject, chapter):
+        """Notes se 3 sawaal banao, apni knowledge se jawab do, khud grade karo. 0-100."""
+        item = next((i for i in self.knowledge.items if i["topic"] == f"{subject}: {chapter}"), None)
+        if not item:
+            return 0
+        try:
+            raw = self.llm(f"From these study notes make 3 short quiz questions with their correct answers. Reply ONLY "
+                           f'JSON: [{{"q": "...", "a": "..."}}]\n\n{item["notes"][:3000]}')
+            qa = json.loads(re.search(r"\[.*\]", raw, re.S).group())[:3]
+        except Exception:
+            return 50
+        scores = []
+        for pair in qa:
+            q, a = str(pair.get("q", "")), str(pair.get("a", ""))
+            if not q:
+                continue
+            ctx = self.knowledge.context(f"{subject} {q}")
+            ans = self.llm(f"Answer in 1-2 sentences using only this knowledge.\n{ctx[:3000]}\n\nQuestion: {q}")
+            grade = self.llm(f"Question: {q}\nCorrect answer: {a}\nStudent answer: {ans}\n"
+                             f"How correct is the student answer from 0 to 100? Reply with only the number.")
+            m = re.search(r"\d+", grade)
+            scores.append(min(100, int(m.group())) if m else 50)
+        return round(sum(scores) / len(scores)) if scores else 50
+
+    def self_test(self, subject=None):
+        """'python ka test do' -> har chapter ka quiz; kamzor chapters background mein dobara seekho."""
+        s = config.USER_NAME
+        subjects = [subject] if subject in self.state["subjects"] else list(self.state["subjects"])
+        if not subjects:
+            return f"{s}, I have not learnt any subject yet, so there is nothing to test."
+        report, weak_total = [], 0
+        for name in subjects:
+            subj = self.state["subjects"][name]
+            scores = {c: self._quiz_chapter(name, c) for c in subj.get("done", [])}
+            subj["scores"] = scores
+            weak = [c for c, v in scores.items() if v < config.PASS_SCORE]
+            weak_total += len(weak)
+            if weak:
+                subj["done"] = [c for c in subj["done"] if c not in weak]
+                subj["done_all"] = False
+                if name not in self.state["queue"]:
+                    self.state["queue"].append(name)
+            avg = round(sum(scores.values()) / len(scores)) if scores else 0
+            subj["score"] = avg
+            report.append(f"{name} scored {avg} percent" + (f", weak in {', '.join(weak[:3])}" if weak else ""))
+        self._save()
+        if weak_total:
+            self._run_background()
+        tail = " I am re-learning the weak chapters now." if weak_total else " No weak chapters."
+        return f"{s}, test done. " + "; ".join(report) + "." + tail
+
+    def _learn_chapter(self, subject, chapter, deep=False):
         from .agent import t_read_webpage
-        query = f"{subject} {chapter}"
+        query = f"{subject} {chapter}" + (" explained with examples" if deep else "")
         texts, sources = [], []
         wiki = internet.wikipedia_summary(query, sentences=6)
         if wiki:
@@ -193,7 +287,7 @@ class Learner:
             texts.append(r.get("body", ""))
             if r.get("href"):
                 sources.append(r["href"])
-        for url in sources[:2]:
+        for url in sources[:4 if deep else 2]:
             try:
                 texts.append(t_read_webpage(url)[:3000])
             except Exception:

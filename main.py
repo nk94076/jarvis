@@ -63,6 +63,8 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.confirm = confirm
     skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
     skills.agent.stop = interrupt
+    skills.plugins.confirm = confirm
+    skills.plugins.progress = lambda text: hud.post("log", "🛠 " + text)
     skills.learner.notify = lambda msg: (hud.post("log", "📚 " + msg[:60]),
                                          hud.post("info", {"learnt": knowledge_info()}), voice.bolo(msg))
     s = config.USER_NAME

@@ -496,6 +496,8 @@ class Agent:
         x = after(r"(?:check|analyze|analyse)\s+(?:my\s+)?(.+?)\s+project") or after(r"(?:mera|my)\s+(.+?)\s+project\s+check")
         if x:
             out = self.call("check_project", {"repo": x})
+            if out.startswith("REPORT SAVED") and self.skills:
+                self.skills.knowledge.add(f"project: {x}", out.split("\n\n", 1)[-1][:4000], [])
             if out.startswith("REPORT SAVED"):
                 return llm("Is project report ko 3-4 line mein bolkar batao (Indian English, no markdown), "
                            "bugs aur syntax errors par focus:\n" + out)[:700] + f" The full report is in Documents, JARVIS Reports, {s}."

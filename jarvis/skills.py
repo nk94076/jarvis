@@ -12,6 +12,10 @@ from . import skills_extra as extra
 from . import agent as agent_mod
 from .learner import Learner, subject_from
 from . import builder
+from . import audit
+from . import selfimprove
+from .plugins import PluginManager
+from . import intent
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -141,6 +145,58 @@ class Skills:
         self.agent = agent_mod.Agent(self)
         agent_mod.AGENT = self.agent
         self.learner = Learner(knowledge, lambda prompt: agent_mod.llm(prompt))
+        self.plugins = PluginManager(lambda prompt: agent_mod.llm(prompt))
+        self.route = ""
+
+    def self_upgrade(self, cmd):
+        """Skill Builder, self-test, dashboard, suggestions, audit. Match na ho to None."""
+        s = config.USER_NAME
+        m = re.search(r"(?:skill|feature|capability|tool)\s+(?:banao|bana do|create karo|build karo|sikho)\s+(?:jo|ki|that|to)?\s*(.*)|"
+                      r"(?:create|build|make)\s+(?:a\s+)?(?:new\s+)?(?:skill|tool)\s+(?:that|to|for|which)?\s*(.*)|"
+                      r"(?:ek\s+)?(?:nayi|naya|new)\s+skill\s+(?:banao|bana do)?\s*(?:jo|ki)?\s*(.*)", cmd)
+        if m:
+            request = next((g for g in m.groups() if g), "").strip()
+            if len(request.split()) < 2:
+                return f"{s}, what should the new skill do? Say for example: ek skill banao jo bitcoin ka price bataye."
+            return self.plugins.create(request)
+        if re.search(r"(kaun si|konsi|kya kya|list|meri|your|all)\s+skills|skills (list|dikhao|batao)", cmd):
+            return self.plugins.describe()
+        m = re.search(r"(?:improve|upgrade|better|sudhaaro|sudharo)\s+(?:skill\s+)?(.+?)(?:\s+skill)?(?:\s+(?:so that|taaki|ki)\s+(.+))?$", cmd)
+        if m and "skill" in cmd:
+            return self.plugins.improve(m.group(1).replace("skill", "").strip(), m.group(2) or "")
+        m = re.search(r"rollback\s+(?:skill\s+)?(.+)", cmd)
+        if m and "skill" in cmd:
+            return self.plugins.rollback(m.group(1).replace("skill", "").strip())
+        m = re.search(r"(disable|enable|band karo|chalu karo)\s+(?:skill\s+)?(.+)|skill\s+(.+?)\s+(disable|enable|band karo|chalu karo)", cmd)
+        if m and "skill" in cmd:
+            name = (m.group(2) or m.group(3) or "").replace("skill", "").strip()
+            return self.plugins.set_enabled(name, (m.group(1) or m.group(4)) in ("enable", "chalu karo"))
+        if re.search(r"dashboard", cmd):
+            selfimprove.dashboard(self.learner, self.knowledge, self.plugins)
+            return f"Opening my dashboard, {s}."
+        if re.search(r"kya improve|what should you improve|suggestion|kya nahi kar (sakte|paye|paya)|kami|gap analysis|"
+                     r"what can't you do|weakness", cmd):
+            return selfimprove.suggestions()
+        if re.search(r"(self test|apna test|quiz|test (do|lo|karo)|exam)", cmd) and not re.search(r"website|code|project", cmd):
+            subject = next((n for n in self.learner.state["subjects"] if n in cmd), None)
+            return self.learner.self_test(subject)
+        m = re.search(r"audit\s+(?:karo\s+)?(?:of\s+|website\s+)?([a-z0-9.-]+\.[a-z]{2,}(?:/\S*)?)|([a-z0-9.-]+\.[a-z]{2,})\s+(?:ka|ki)\s+audit", cmd)
+        if m:
+            return audit.report(m.group(1) or m.group(2))
+        return None
+
+    def handle(self, cmd):
+        """handle ke upar record: success / failure / capability gap (self-improvement ke liye)."""
+        self.route = ""
+        try:
+            reply = self._handle(cmd)
+        except Exception as e:
+            selfimprove.record(cmd, "", ok=False, error=f"{type(e).__name__}: {e}")
+            raise
+        if reply is not None:
+            gap = self.route == "chat" and is_task(cmd) and selfimprove.looks_like_gap(cmd, reply)
+            selfimprove.record(cmd, reply, ok=not reply.startswith(("Sorry", "ERROR")), gap=gap)
+        return reply
 
     def learning(self, cmd):
         """Seekhne se jude saare commands. Match na ho to None."""
@@ -157,7 +213,14 @@ class Skills:
             return self.learner.status() + " " + self.knowledge.kya_seekha()
         if cmd.startswith(("notes", "seekha hua batao")):
             return self.knowledge.batao(_after(cmd, "notes", "batao"))
-        if re.search(r"\b(learn|seekh|sikh|seekho|sikho|sikhao)\w*|padhna (start|shuru)|padh(o| lo) aur (seekh|sikh)", cmd):
+        if re.search(r"(learning list|seekhne ki list|learning queue)\s*(saaf|clear|khali|delete)|clear (the )?learning (list|queue)", cmd):
+            return self.learner.clear_queue()
+        m = re.search(r"(?:remove|hatao|hata do|delete)\s+(.+?)\s+(?:from|se)\s+(?:the\s+)?(?:learning|list)|"
+                      r"(.+?)\s+(?:ko\s+)?learning (?:list )?se (?:hatao|hata do|remove karo)", cmd)
+        if m:
+            return self.learner.remove((m.group(1) or m.group(2)).strip())
+        if re.search(r"\b(seekho|sikho|sikhao|seekhao|seekh lo|sikh lo|learn karo|learn kar lo|learn karna (start|shuru)|"
+                     r"(seekhna|sikhna|sikhana|seekhana|padhna|learning) (start|shuru)|start learning|learn about)\b|^learn\s", cmd):
             subject = subject_from(cmd)
             if not subject:
                 return f"{s}, what should I learn? Say for example: learn Python."
@@ -174,11 +237,23 @@ class Skills:
             open_path(f)
         return f"Done {config.USER_NAME}, I have written it in Notepad and saved it in Documents, JARVIS Notes."
 
-    def handle(self, cmd):
+    def jarvis_facts(self):
+        """JARVIS apne baare mein sach bataye (sawaal: 'band kar dun to bhi seekhoge?')."""
+        q = self.learner.state.get("queue", [])
+        return ("Facts about yourself (JARVIS): learning runs in the background only while JARVIS is running. "
+                "If the user closes JARVIS, learning pauses and automatically continues from the same chapter "
+                "next time JARVIS starts. Nothing learnt is lost; memory is deleted only if the user says "
+                "'memory delete karo' and confirms. "
+                + (f"Currently pending to learn: {', '.join(q)}." if q else "Nothing is pending to learn."))
+
+    def _handle(self, cmd):
         """Jawab (str) lautata hai. None matlab band ho jao."""
         s = config.USER_NAME
-        if any(w in cmd for w in ["bye", "exit", "band ho", "goodbye"]):
+        if any(w in cmd for w in ["bye", "exit", "goodbye"]) or cmd.strip() in ("band ho jao", "jarvis band ho jao"):
             return None
+        # sawaal jaisa vaakya? pehle samjho ki ye order hai ya sawaal (koi adhoora kaam pending na ho tab)
+        if not self.pending and intent.ambiguous(cmd) and intent.classify(cmd) == "question":
+            return self.chat(cmd)
 
         # ---- pichla adhoora kaam ----
         if self.pending == "notepad":
@@ -217,6 +292,16 @@ class Skills:
         if re.search(r"(code|software|version|jarvis)\s+(update|updte)|update (your )?(code|software|version)|naya version", cmd):
             self.pending = "code_update"
             return f"{s}, should I download the latest version of my code? Your memory will stay safe. Say yes or no."
+
+        # ---- self-upgrade: skill builder, self-test, dashboard, audit ----
+        jawab = self.self_upgrade(cmd)
+        if jawab:
+            return jawab
+
+        # ---- JARVIS ki khud banayi skills (aapki banwayi skill built-in se pehle) ----
+        jawab = self.plugins.match(cmd)
+        if jawab:
+            return jawab
 
         # ---- website / landing page banana ----
         if builder.wants_page(cmd):
@@ -362,9 +447,15 @@ class Skills:
             return f"{s}, for safety I don't shut down the system myself. Please do it manually."
 
         # ---- baaki sab: baatcheet, seekhi hui jaankari ke saath ----
+        self.route = "chat"
         if agent_mod.needs_agent(cmd):
             return self.agent.run(cmd)          # multi-step: Main Brain tools ke saath
-        context = [extra.facts_text(), self.knowledge.context(cmd)]
+        return self.chat(cmd)
+
+    def chat(self, cmd):
+        """Baatcheet: yaad rakhi baatein + seekha gyaan + (sawaal ho to) internet."""
+        self.route = "chat"
+        context = [extra.facts_text(), self.knowledge.context(cmd), self.jarvis_facts()]
         if is_question(cmd) and internet.internet_hai():   # sawaal hai to internet se taaza jaankari
             web = internet.search(cmd, max_results=5)
             if web:
