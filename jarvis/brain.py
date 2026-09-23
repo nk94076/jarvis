@@ -16,7 +16,7 @@ class Brain:
             import ollama
             return ollama.chat(model=config.OLLAMA_MODEL, messages=messages)["message"]["content"].strip()
         except Exception as e:
-            return f"{config.USER_NAME}, mera dimaag abhi chalu nahi hai. Ollama chalu karo. ({e})"
+            return f"{config.USER_NAME}, my brain is offline. Please start Ollama. ({e})"
 
     def socho(self, sawaal, extra_context=""):
         """Baatcheet: history ke saath jawab deta hai aur memory save karta hai."""

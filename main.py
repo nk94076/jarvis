@@ -1,33 +1,95 @@
-"""JARVIS chalao:  python main.py         (awaaz se)
-                python main.py --text  (keyboard se type karke)"""
-import sys
+"""JARVIS chalao:
+    python main.py           Iron Man HUD screen + awaaz (default)
+    python main.py --cli     bina screen ke, sirf awaaz
+    python main.py --text    keyboard se type karke (mic ke bina test karne ke liye)
 
-from jarvis import config
+Kaise kaam karta hai: JARVIS chupchaap sunta rehta hai. "Jarvis" bolo to wo
+"Yes sir" bolega, aapka kaam karega, aur phir "Task done, sir" bolega.
+Ek saath bhi bol sakte ho: "Jarvis, open YouTube"."""
+import sys
+import threading
+
+from jarvis import config, internet
 from jarvis.brain import Brain
-from jarvis.internet import internet_hai
 from jarvis.knowledge import Knowledge
 from jarvis.skills import Skills
 from jarvis.voice import Voice
 
 
-def main():
-    voice = Voice(text_mode="--text" in sys.argv)
+class NoHUD:
+    def post(self, kind, value=None):
+        pass
+
+
+def wake_word_ke_baad(text):
+    """Wake word mila to uske baad ka command lautata hai ("" agar sirf naam bola). Nahi mila to None."""
+    for w in config.WAKE_WORDS:
+        if w in text:
+            return text.split(w, 1)[1].strip(" ,.!?")
+    return None
+
+
+def jarvis_loop(hud, text_mode, stop):
+    voice = Voice(text_mode=text_mode,
+                  on_say=lambda t: (hud.post("state", "speak"), hud.post("say", t)),
+                  on_said=lambda: hud.post("said"))
     brain = Brain()
     skills = Skills(brain, Knowledge(brain))
-    mode = "online" if internet_hai() else "offline"
-    voice.bolo(f"Namaste {config.USER_NAME}, JARVIS {mode} mode mein ready hai.")
-    while True:
-        cmd = voice.suno()
-        if not cmd:
+    s = config.USER_NAME
+
+    online = internet.internet_hai()
+    if online:
+        try:
+            hud.post("weather", internet.mausam())
+        except Exception:
+            pass
+    voice.bolo(f"Hello {s}, JARVIS is online and ready. Just call my name."
+               if online else f"Hello {s}, JARVIS is ready in offline mode. Just call my name.")
+    hud.post("state", "sleep")
+
+    while not stop.is_set():
+        text = voice.suno()
+        if not text:
             continue
+        cmd = wake_word_ke_baad(text)
+        if cmd is None:
+            continue  # naam nahi bola, to sirf standby mein raho
+
+        hud.post("state", "listen")
+        voice.bolo(f"Yes {s}?")
+        if not cmd:
+            hud.post("state", "listen")
+            cmd = voice.suno()
+            if not cmd:
+                hud.post("state", "sleep")
+                continue
+
+        hud.post("log", cmd)
+        hud.post("state", "work")
         try:
             jawab = skills.handle(cmd)
         except Exception as e:
-            jawab = f"{config.USER_NAME}, ek gadbad hui: {e}"
+            jawab = f"Sorry {s}, something went wrong: {e}"
+
         if jawab is None:
-            voice.bolo(f"Alvida {config.USER_NAME}, apna khayal rakhiye.")
-            break
+            voice.bolo(f"Goodbye {s}. Take care.")
+            hud.post("quit")
+            return
         voice.bolo(jawab)
+        voice.bolo(f"Task done, {s}.")
+        hud.post("state", "sleep")
+
+
+def main():
+    text_mode = "--text" in sys.argv
+    stop = threading.Event()
+    if "--cli" in sys.argv or text_mode and "--gui" not in sys.argv:
+        jarvis_loop(NoHUD(), text_mode, stop)
+        return
+    from jarvis.hud import HUD
+    hud = HUD(on_close=stop.set)
+    threading.Thread(target=jarvis_loop, args=(hud, text_mode, stop), daemon=True).start()
+    hud.run()
 
 
 if __name__ == "__main__":

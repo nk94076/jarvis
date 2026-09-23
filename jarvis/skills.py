@@ -39,37 +39,37 @@ class Skills:
         # ---- seekhna ----
         if cmd.startswith(("seekho", "sikho", "learn")):
             topic = _after(cmd, "seekho", "sikho", "learn", "about").removeprefix("about").strip()
-            return self.knowledge.seekho(topic) if topic else f"{s}, kya seekhun?"
-        if any(w in cmd for w in ["kya seekha", "kya sikha", "what did you learn", "what have you learned"]):
+            return self.knowledge.seekho(topic) if topic else f"What should I learn, {s}?"
+        if any(w in cmd for w in ["kya seekha", "kya sikha", "what did you learn", "what have you learned", "what have you learnt"]):
             return self.knowledge.kya_seekha()
         if cmd.startswith(("notes", "seekha hua batao")):
             return self.knowledge.batao(_after(cmd, "notes", "batao"))
         if any(w in cmd for w in ["bhool jao", "forget everything"]):
             self.brain.bhool_jao()
-            return f"{s}, maine baatcheet ki memory mita di."
+            return f"Done {s}, I have cleared our conversation memory."
 
         # ---- basic ----
         if "time" in cmd or "samay" in cmd:
-            return datetime.datetime.now().strftime(f"{s}, abhi %I:%M %p baje hain.")
+            return datetime.datetime.now().strftime(f"{s}, the time is %I:%M %p.")
         if "date" in cmd or "tareekh" in cmd:
-            return datetime.date.today().strftime(f"{s}, aaj %d %B %Y hai.")
+            return datetime.date.today().strftime(f"{s}, today is %A, %d %B %Y.")
 
         # ---- apps aur websites ----
         if any(w in cmd for w in ["open", "kholo", "khol"]):
             for name, url in WEBSITES.items():
                 if name in cmd:
                     webbrowser.open(url)
-                    return f"{name} khol raha hoon, {s}."
+                    return f"Opening {name}, {s}."
             for name, cmds in APPS.items():
                 if name in cmd:
                     subprocess.Popen(cmds[platform.system()], shell=True)
-                    return f"{name} khol diya, {s}."
+                    return f"{name} is open, {s}."
 
         # ---- online kaam ----
         online_words = ["weather", "mausam", "play", "chalao", "search", "news", "khabar", "google"]
         if any(w in cmd for w in online_words):
             if not internet.internet_hai():
-                return f"{s}, iske liye internet chahiye. Abhi main offline hoon."
+                return f"Sorry {s}, I need internet for this. I am offline right now."
             if "weather" in cmd or "mausam" in cmd:
                 return internet.mausam(_after(cmd, " in ", " of "))
             if "play" in cmd or "chalao" in cmd:
@@ -79,14 +79,14 @@ class Skills:
                     pywhatkit.playonyt(song)
                 except Exception:
                     webbrowser.open(f"https://www.youtube.com/results?search_query={song}")
-                return f"{song} chala raha hoon, {s}."
+                return f"Playing {song} on YouTube, {s}."
             query = _after(cmd, "search", "google") or cmd
             results = internet.search(query)
             info = "\n".join(r.get("body", "") for r in results)
             return self.brain.socho(f"Internet se mili jaankari:\n{info}\n\nIs se jawab do: {cmd}")
 
         if "shutdown" in cmd:
-            return f"{s}, suraksha ke liye shutdown khud nahi karta. Pehle confirm karke khud karein."
+            return f"{s}, for safety I don't shut down the system myself. Please do it manually."
 
         # ---- baaki sab: baatcheet, seekhi hui jaankari ke saath ----
         return self.brain.socho(cmd, extra_context=self.knowledge.context(cmd))

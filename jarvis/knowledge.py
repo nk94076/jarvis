@@ -24,7 +24,7 @@ class Knowledge:
     def seekho(self, topic):
         """Internet se topic ke baare mein padhta hai aur notes save karta hai."""
         if not internet.internet_hai():
-            return f"{config.USER_NAME}, seekhne ke liye internet chahiye."
+            return f"{config.USER_NAME}, I need internet to learn new things."
         texts = []
         wiki = internet.wikipedia_summary(topic)
         if wiki:
@@ -32,11 +32,11 @@ class Knowledge:
         results = internet.search(topic)
         texts += [r.get("body", "") for r in results]
         if not any(texts):
-            return f"{config.USER_NAME}, {topic} ke baare mein kuch nahi mila."
+            return f"Sorry {config.USER_NAME}, I could not find anything about {topic}."
         raw = "\n".join(texts)[:6000]
         notes = self.brain.ek_baar(
             f"Neeche di gayi jaankari se '{topic}' ke 5-7 sabse zaroori points "
-            f"saral Hinglish mein likho, har point nayi line par:\n\n{raw}")
+            f"simple Indian English mein likho, har point nayi line par:\n\n{raw}")
         self.items = [i for i in self.items if i["topic"] != topic]
         self.items.append({
             "topic": topic,
@@ -46,17 +46,17 @@ class Knowledge:
         })
         self._save()
         pehli_line = notes.splitlines()[0] if notes else ""
-        return f"{config.USER_NAME}, maine {topic} ke baare mein seekh liya. {pehli_line}"
+        return f"{config.USER_NAME}, I have learnt about {topic}. {pehli_line}"
 
     def kya_seekha(self):
         if not self.items:
-            return f"{config.USER_NAME}, maine abhi tak kuch nahi seekha. Boliye 'seekho' aur topic ka naam."
+            return f"{config.USER_NAME}, I have not learnt anything yet. Just say learn, and the topic name."
         topics = ", ".join(i["topic"] for i in self.items[-10:])
-        return f"{config.USER_NAME}, maine {len(self.items)} topics seekhe hain. Haal ke: {topics}."
+        return f"{config.USER_NAME}, I have learnt {len(self.items)} topics so far. Recent ones are: {topics}."
 
     def batao(self, topic):
         item = self.dhoondo(topic, limit=1)
-        return item[0]["notes"] if item else f"{topic} ke baare mein maine abhi kuch nahi seekha."
+        return item[0]["notes"] if item else f"I have not learnt about {topic} yet."
 
     def dhoondo(self, query, limit=2):
         """Sawaal se milte-julte seekhe hue topics."""

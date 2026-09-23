@@ -8,3 +8,6 @@ requests
 ddgs
 wikipedia
 pywhatkit
+psutil
+edge-tts
+pygame

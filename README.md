@@ -2,6 +2,12 @@
 
 Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 
+![JARVIS HUD](docs/hud.png)
+
+- **Iron Man HUD:** beech mein arc reactor heartbeat ki tarah dhadakta hai, saath mein ghadi, CPU/RAM/Disk, weather aur activity log.
+- **Sirf naam se jaagta hai:** "Jarvis" bolo, to chhota robot "Yes Sir?" bolega, kaam karega, phir "Task done, Sir." bolega.
+- **Indian English awaaz:** online ho to `en-IN-PrabhatNeural`, offline ho to computer ki Indian English awaaz.
+
 - **Paid API nahi:** dimaag (Ollama) aapke computer par chalta hai.
 - **Offline + Online:** internet na ho to bhi baat karta hai. Internet ho to search, weather, YouTube bhi.
 - **Internet se seekhta hai:** "seekho <topic>" bolo, wo padh kar notes bana lega aur yaad rakhega.
@@ -28,16 +34,21 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 ## Chalao
 
 ```bash
-python main.py          # awaaz se
-python main.py --text   # keyboard se type karke
+python main.py              # HUD screen + awaaz
+python main.py --cli        # bina screen ke
+python main.py --text       # type karke test karo
+python main.py --text --gui # screen ke saath, type karke
 ```
+
+Har command se pehle **"Jarvis"** bolo, jaise *"Jarvis, open YouTube"*. Sirf "Jarvis" bolo to wo "Yes Sir?" bol kar command ka intezaar karega.
+`F11` se full screen hota hai, `Esc` se band.
 
 ## Commands
 
 | Bolo | Kya hoga |
 |---|---|
-| `seekho artificial intelligence` | Internet se padh kar notes banayega aur save karega |
-| `kya seekha` | Seekhe hue topics batayega |
+| `learn artificial intelligence` / `seekho ...` | Internet se padh kar notes banayega aur save karega |
+| `what have you learnt` / `kya seekha` | Seekhe hue topics batayega |
 | `notes artificial intelligence` | Us topic ke notes sunayega |
 | `time` / `date` | Samay / tareekh |
 | `open youtube`, `notepad kholo` | Website / app kholega |
@@ -53,7 +64,8 @@ python main.py --text   # keyboard se type karke
 ```
 main.py              shuru karne ki file
 jarvis/config.py     naam, model, personality (yahan customize karo)
-jarvis/voice.py      sunna aur bolna
+jarvis/hud.py        Iron Man jaisa screen (arc reactor, character)
+jarvis/voice.py      sunna aur bolna (Indian English)
 jarvis/brain.py      Ollama dimaag + memory
 jarvis/knowledge.py  internet se seekhna, notes save karna
 jarvis/skills.py     saare commands (naya kaam yahan add karo)
@@ -67,5 +79,5 @@ data/                memory.json aur knowledge.json (apne aap banta hai)
 
 ```python
 if "joke" in cmd:
-    return "Sir, Tony Stark ne kaha: main Iron Man hoon. Maine kaha: aur main uska WiFi."
+    return "Sir, why did the computer go to the doctor? Because it had a virus."
 ```
