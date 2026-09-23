@@ -1,0 +1,10 @@
+ollama
+pyttsx3
+vosk
+sounddevice
+SpeechRecognition
+pyaudio
+requests
+ddgs
+wikipedia
+pywhatkit
