@@ -62,8 +62,8 @@ def resolve(path):
 
 
 def llm(prompt, model=None):
-    import ollama
-    r = ollama.chat(model=model or config.AGENT_MODEL, messages=[{"role": "user", "content": prompt}])
+    from .llm_client import chat
+    r = chat([{"role": "user", "content": prompt}], model=model or config.AGENT_MODEL)
     return r["message"]["content"].strip()
 
 
@@ -375,7 +375,6 @@ class Agent:
 
     # ---------- multi-step agent loop ----------
     def run(self, task):
-        import ollama
         s = config.USER_NAME
         messages = [{"role": "system", "content": AGENT_PROMPT.format(
             today=datetime.date.today(), projects=", ".join(config.PROJECTS) or "none")},
@@ -386,7 +385,8 @@ class Agent:
             if self.stop is not None and self.stop.is_set():
                 return f"Stopped, {s}."
             try:
-                r = ollama.chat(model=config.AGENT_MODEL, messages=messages, tools=schemas)
+                from .llm_client import chat
+                r = chat(messages, model=config.AGENT_MODEL, tools=schemas)
             except Exception as e:
                 return f"{s}, my brain is offline. Please start Ollama. ({e})"
             msg = r["message"]

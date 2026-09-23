@@ -26,6 +26,15 @@ Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likh
 
 **`No module named 'pyttsx3'` jaisa error aaye:** `setup.bat` dobara chalao. Ab wo har library alag se install karta hai aur batata hai kaunsi fail hui. JARVIS ab `pyaudio` ke bina chalta hai, isliye Python 3.12, 3.13 ya 3.14 sab chalenge.
 
+## 🧠 Smart dimaag (16 GB GPU/RAM)
+
+**`upgrade_brain.bat`** par double-click karo. Ye `qwen2.5:14b` (lagbhag 9 GB) download karke `JARVIS Data\my_settings.py` mein set kar dega.
+JARVIS dobara chalao, to HUD mein **BRAIN: qwen2.5:14b** dikhega.
+
+- Model GPU mein 60 minute load rehta hai, isliye jawab tez aate hain (`KEEP_ALIVE`).
+- Settings wala model install na ho to JARVIS jo sabse bada model install hai uspar chalta hai.
+- Personality: insaan jaisi baat, Hinglish samajhna, pichhli baaton ka context, na pata ho to seedha bolna.
+
 ## 🔄 Update kaise karein
 
 - **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.

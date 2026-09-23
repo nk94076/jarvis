@@ -22,8 +22,8 @@ class Brain:
 
     def _chat(self, messages):
         try:
-            import ollama
-            return ollama.chat(model=config.OLLAMA_MODEL, messages=messages)["message"]["content"].strip()
+            from .llm_client import chat
+            return chat(messages)["message"]["content"].strip()
         except Exception as e:
             return f"{config.USER_NAME}, my brain is offline. Please start Ollama. ({e})"
 
@@ -36,7 +36,7 @@ class Brain:
             system += "\n\nYe jaankari tumne pehle seekhi hai, zaroorat ho to use karo:\n" + extra_context
         system += "\nSirf seedha jawab do. Sawaal dobara mat likho, 'Q:' ya headings mat banao."
         self.history.append({"role": "user", "content": sawaal})
-        jawab = clean(self._chat([{"role": "system", "content": system}] + self.history[-12:]))
+        jawab = clean(self._chat([{"role": "system", "content": system}] + self.history[-config.CHAT_TURNS:]))
         self.history.append({"role": "assistant", "content": jawab})
         self.history = self.history[-config.MAX_HISTORY:]
         config.MEMORY_FILE.write_text(json.dumps(self.history, ensure_ascii=False, indent=1), encoding="utf-8")
