@@ -96,9 +96,16 @@ def is_question(cmd):
     return any(w in cmd for w in QUESTION_WORDS)
 
 
+ACTION_RE = re.compile(r"\b(open|kholo|khol do|close|band kar\w*|play|chalao|likho|likh do|write|type|search|dhundo|"
+                       r"research|organi[sz]e|screenshot|banao|bana do|learn|seekho|sikho|sikhna|seekhna|sikhana|padhna|whatsapp|"
+                       r"email|mail|lock|click|delete|move|run command|install|download)\b")
+
+
 def is_task(cmd):
-    """Kya ye koi kaam hai (sirf baatcheet ya sawaal nahi)?"""
-    return any(w in cmd for w in TASK_WORDS)
+    """Kya ye koi kaam hai? Sawaal ("google ads kaise chalate hain") task nahi hai."""
+    if not ACTION_RE.search(cmd):
+        return False
+    return not (is_question(cmd) and not re.search(r"\b(karo|kar do|banao|kholo|open|start|sikho|seekho|bhejo|send)\b", cmd))
 
 
 def day_answer(cmd, s):
@@ -150,8 +157,11 @@ class Skills:
             return self.learner.status() + " " + self.knowledge.kya_seekha()
         if cmd.startswith(("notes", "seekha hua batao")):
             return self.knowledge.batao(_after(cmd, "notes", "batao"))
-        if re.search(r"\b(learn|seekh|sikh|seekho|sikho)\w*", cmd) and not is_question(cmd.replace("kya seekh", "")):
-            return self.learner.start(subject_from(cmd))
+        if re.search(r"\b(learn|seekh|sikh|seekho|sikho|sikhao)\w*|padhna (start|shuru)|padh(o| lo) aur (seekh|sikh)", cmd):
+            subject = subject_from(cmd)
+            if not subject:
+                return f"{s}, what should I learn? Say for example: learn Python."
+            return self.learner.start(subject)
         return None
 
     def write_notepad(self, text):
@@ -357,6 +367,10 @@ class Skills:
         context = [extra.facts_text(), self.knowledge.context(cmd)]
         if is_question(cmd) and internet.internet_hai():   # sawaal hai to internet se taaza jaankari
             web = internet.search(cmd, max_results=5)
-            context.append("Internet se abhi mili jaankari (isi par jawab do):\n" +
-                           "\n".join(f"- {r.get('title')}: {r.get('body')}" for r in web))
+            if web:
+                context.append("Internet se abhi mili jaankari (isi par jawab do):\n" +
+                               "\n".join(f"- {r.get('title')}: {r.get('body')}" for r in web))
+            else:
+                context.append("Internet par is baare mein kuch nahi mila. Agar pakka nahi pata to saaf bolo "
+                               "'I am not sure about this', andaza mat lagao.")
         return self.brain.socho(cmd, extra_context="\n\n".join(c for c in context if c))

@@ -407,6 +407,21 @@ class Agent:
                 messages.append({"role": "tool", "content": self.call(name, args or {})[:4000], "tool_name": name})
         return f"{s}, I did {config.AGENT_MAX_STEPS} steps. Please check the activity log for details."
 
+    def click_smart(self, target):
+        """'the flipkart', 'flipkart brouser mein jo flipkart dikh raha hai use per' -> 'flipkart' par click."""
+        junk = r"\b(the|a|button|link|option|icon|wala|wali|jo|use|usko|isko|us|is|per|par|pe|pr|mein|me|brouser|browser|" \
+               r"screen|dikh|raha|rahi|hai|likha|hua|click|karo|kar|do|on|ko|pe|tab)\b"
+        words = re.sub(junk, " ", target).split()
+        tries = [" ".join(words)] + [" ".join(words[:n]) for n in (3, 2, 1)] if words else [target]
+        seen = []
+        for t in tries:
+            if t and t not in seen:
+                seen.append(t)
+                out = self.call("click_text", {"text": t})
+                if not out.endswith("nahi mila"):
+                    return out
+        return f"'{seen[0] if seen else target}' screen par nahi mila"
+
     # ---------- seedhe commands (bina model ke) ----------
     def fast(self, cmd):
         self.denied = False
@@ -423,13 +438,14 @@ class Agent:
         if re.search(r"start (button|menu)|windows (button|key|menu)", cmd):
             self.call("press_keys", {"keys": "win"})
             return f"Opened the Start menu, {s}."
-        if re.search(r"(read|padho|padh do).*(screen)|screen (par|pe) kya|what.*on (my )?screen", cmd):
+        if re.search(r"(read|padho|padh do).*(screen|browser|brouser|page|window)|(screen|browser|brouser|page)\s+(ko\s+)?(read|padho)|"
+                     r"screen (par|pe) kya|what.*on (my )?screen", cmd):
             text = self.call("read_screen", {})
             lines = [line for line in text.splitlines() if len(line) > 3][:8]
             return f"{s}, I can see: " + ". ".join(lines)[:300]
-        x = after(r"^(.+?)\s+(?:par|pe) click(?: karo| kar do)?$") or after(r"(?:click on|click karo)\s+(.+)")
+        x = after(r"^(.+?)\s+(?:par|pe|per|pr) click(?: karo| kar do)?$") or after(r"(?:click on|click karo)\s+(.+)")
         if x:
-            return f"{s}, " + self.call("click_text", {"text": x})
+            return f"{s}, " + self.click_smart(x)
         x = after(r"^(?:press|dabao)\s+(.+)") or after(r"(.+?)\s+dabao$")
         if x and re.fullmatch(r"[a-z0-9+ ]+", x):
             return f"Done, {s}. " + self.call("press_keys", {"keys": x.replace(" plus ", "+").replace(" ", "")})
@@ -437,6 +453,9 @@ class Agent:
             return self.call("scroll", {"direction": "down"}) and f"Scrolled down, {s}."
         if re.search(r"scroll (up|upar)|upar scroll", cmd):
             return self.call("scroll", {"direction": "up"}) and f"Scrolled up, {s}."
+        if re.search(r"close (this |the |current |ye |yeh )?tab|tab (band|close)", cmd):
+            self.call("browser_action", {"action": "close_tab"})
+            return f"Tab closed, {s}."
         for words, action in [(("new tab", "naya tab"), "new_tab"), (("close tab", "tab band"), "close_tab"),
                               (("next tab", "agla tab"), "next_tab"), (("previous tab", "pichla tab"), "previous_tab"),
                               (("go back", "peeche jao", "wapas jao"), "back"), (("go forward", "aage jao"), "forward"),

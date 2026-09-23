@@ -433,7 +433,7 @@ def open_any_site(cmd, s):
     if not m:
         return None
     name = _strip(m.group(1), FILLER + ["karo", "kar do", "website", "site", "app", "the", "browser mein", "chrome mein"])
-    if not name or name in ("it", "this", "that"):
+    if not name or name in ("it", "this", "that") or len(name.split()) > 3:
         return None
     for key, url in SITES.items():
         if key == name or key.replace(" ", "") == name.replace(" ", ""):
@@ -571,16 +571,31 @@ def whatsapp(cmd, s):
             f"like mom and her number.")
 
 
+def spoken_email(cmd):
+    """'nk 94076 at the rate gmail.com' / 'nk94076 at gmail dot com' -> 'nk94076@gmail.com'"""
+    m = re.search(r"([\w.@-]+@[\w-]+\.[\w.]+)", cmd)
+    if m:
+        return m.group(1)
+    m = re.search(r"(?:to|ko)\s+((?:[a-z0-9._-]+\s?){1,4}?)\s*(?:at the rate|at the|at)\s+([a-z0-9-]+)\s*(?:dot|\.)\s*(com|in|org|net|co\.in|co)\b", cmd)
+    if m:
+        return m.group(1).replace(" ", "") + "@" + m.group(2) + "." + m.group(3)
+    return ""
+
+
 def email(cmd, s):
     if not _has(cmd, "email", "e-mail", "mail likho", "gmail compose"):
         return None
-    to = ""
+    to = spoken_email(cmd)
     for name, addr in config.EMAILS.items():
-        if name in cmd:
+        if re.search(rf"\b{re.escape(name)}\b", cmd):
             to = addr
-    m = re.search(r"(?:subject|about|ke bare mein|ke baare mein)\s+(.+)", cmd)
-    subject = m.group(1) if m else ""
-    webbrowser.open(f"https://mail.google.com/mail/?view=cm&fs=1&to={quote(to)}&su={quote(subject)}")
+    body = ""
+    m = re.search(r"(?:message|body|likho ki|content)\s+(?:is\s+|hai\s+)?(.+)", cmd)
+    if m:
+        body, cmd = m.group(1), cmd[:m.start()]
+    m = re.search(r"(?:subject|about|ke bare mein|ke baare mein)\s+(?:is\s+|hai\s+)?(.+)", cmd)
+    subject = m.group(1).strip() if m else ""
+    webbrowser.open(f"https://mail.google.com/mail/?view=cm&fs=1&to={quote(to)}&su={quote(subject)}&body={quote(body)}")
     return f"Opened Gmail compose{' for ' + to if to else ''}, {s}. Write your message and press send."
 
 

@@ -18,12 +18,24 @@ LEARN_FILLER = ["ek kaam karo", "ek kam karo", "internet se", "google se", "lear
                 "sikhna start karo", "seekhna start karo", "start karo", "shuru karo", "learn", "seekhna",
                 "sikhna", "seekho", "sikho", "sikhao", "sikhana", "seekhao", "seekh lo", "sikh lo", "karo", "kar do", "start", "sab kuch", "poora",
                 "pura", "complete", "detail mein", "achhe se", "about", "ke bare mein", "ke baare mein", "please",
-                "jarvis", "language", "mujhe", "tum", "tumhe", "apne aap", "khud", "se", "ko", "the", "to"]
+                "jarvis", "language", "languages", "mujhe", "tum", "tumhe", "apne aap", "khud", "se", "ko", "the", "to",
+                "bare mein", "baare mein", "bare me", "bare", "baare", "mein", "me", "ke", "ka", "ki", "padhna",
+                "padho", "padh lo", "batao", "bata do", "mujhe batao", "sikhana", "seekhana", "internet", "access",
+                "maine kaha hai", "maine kaha", "pura", "sab", "kuch", "karna", "hai", "please"]
+
+
+def subject_words(part):
+    text = part
+    for w in sorted(LEARN_FILLER, key=len, reverse=True):
+        text = re.sub(rf"\b{re.escape(w)}\b", " ", text)
+    return text.split()
 
 
 def subject_from(cmd):
     """'internet se python learn karna start karo' -> 'python'"""
-    text = re.split(r"\s+(?:aur|and then|phir|then)\s+", cmd)[0]
+    parts = re.split(r"\s+(?:aur|and then|and|phir|then|uske baad)\s+", cmd)
+    verb = re.compile(r"learn|seekh|sikh|padhna|padho")
+    text = next((p for p in parts if verb.search(p) and subject_words(p)), parts[0])
     for w in sorted(LEARN_FILLER, key=len, reverse=True):
         text = re.sub(rf"\b{re.escape(w)}\b", " ", text)
     return " ".join(text.split())
