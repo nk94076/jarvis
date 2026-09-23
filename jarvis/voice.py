@@ -4,14 +4,19 @@ import json
 import os
 import queue
 import tempfile
+import time
 
 from . import config
 from .internet import internet_hai
 
 
 class Voice:
-    def __init__(self, text_mode=False, on_say=None, on_said=None):
+    def __init__(self, text_mode=False, on_say=None, on_said=None, typed=None):
         self.text_mode = text_mode
+        self.typed = typed          # HUD ke type box se aane wale commands
+        self.mic_ok = True
+        self._rec = None
+        self._calibrated = False
         self.on_say = on_say or (lambda text: None)
         self.on_said = on_said or (lambda: None)
         self.engine = None
@@ -29,12 +34,12 @@ class Voice:
                     break
             self.engine.setProperty("rate", 175)
         except Exception as e:
-            print(f"[voice] Speaker nahi mila ({e}), sirf text dikhega.")
+            print(f"[voice] Awaaz band: {e}. Fix: setup.bat dobara chalao (pyttsx3 install hoga).")
         try:
             from vosk import KaldiRecognizer, Model
             self.vosk = KaldiRecognizer(Model(config.VOSK_MODEL_DIR), 16000)
         except Exception as e:
-            print(f"[voice] Vosk model nahi mila ({e}). Online Google speech use hogi.")
+            print(f"[voice] Offline sunna band ({e}). Internet par Google speech chalegi.")
 
     def bolo(self, text):
         print(f"JARVIS: {text}")
@@ -69,42 +74,80 @@ class Voice:
             return False
 
     def suno(self):
-        if self.text_mode:
+        """Ek command lautata hai: mic se, ya HUD ke type box se (jo pehle aaye)."""
+        if self.text_mode and self.typed is None:
             try:
                 return input("Aap: ").strip().lower()
             except EOFError:
                 return "bye"
-        if internet_hai():
-            text = self._google()
-            if text is not None:
+        while True:
+            if self.typed is not None and not self.typed.empty():
+                return self.typed.get().strip().lower()
+            text = None
+            if not self.text_mode and self.mic_ok:
+                if internet_hai():
+                    text = self._google()
+                elif self.vosk:
+                    text = self._vosk(timeout=4)
+                else:
+                    time.sleep(0.3)
+            elif self.typed is not None:
+                try:
+                    return self.typed.get(timeout=0.5).strip().lower()
+                except queue.Empty:
+                    pass
+            else:
+                return input("Aap (type karo): ").strip().lower()
+            if text:
                 return text
-        if self.vosk:
-            return self._vosk()
-        return input("Aap (type karo): ").strip().lower()
 
     def _google(self):
         try:
             import speech_recognition as sr
-            r = sr.Recognizer()
+        except ImportError:
+            print("[voice] SpeechRecognition install nahi hai. setup.bat dobara chalao.")
+            self.mic_ok = False
+            return None
+        try:
+            if self._rec is None:
+                self._rec = sr.Recognizer()
+                self._rec.dynamic_energy_threshold = True
             with sr.Microphone() as mic:
-                print("Sun raha hoon (online)...")
-                r.adjust_for_ambient_noise(mic, duration=0.5)
-                audio = r.listen(mic, phrase_time_limit=10)
-            text = r.recognize_google(audio, language="en-IN").lower()
+                if not self._calibrated:
+                    self._rec.adjust_for_ambient_noise(mic, duration=0.8)
+                    self._calibrated = True
+                audio = self._rec.listen(mic, timeout=4, phrase_time_limit=10)
+            text = self._rec.recognize_google(audio, language="en-IN").lower()
             print(f"Aap: {text}")
             return text
+        except sr.WaitTimeoutError:
+            return None
+        except sr.UnknownValueError:
+            return None
+        except (OSError, AttributeError) as e:
+            print(f"[voice] Mic nahi mila ({e}). HUD ke box mein type karo.")
+            self.mic_ok = False
+            return None
         except Exception:
             return None
 
-    def _vosk(self):
+    def _vosk(self, timeout=4):
         import sounddevice as sd
         q = queue.Queue()
-        print("Sun raha hoon (offline)...")
+        deadline = time.time() + timeout
         with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype="int16",
                                channels=1, callback=lambda d, f, t, s: q.put(bytes(d))):
-            while True:
-                if self.vosk.AcceptWaveform(q.get()):
+            # chup ho to timeout par wapas; bol rahe ho to vaakya poora hone do
+            while time.time() < deadline or json.loads(self.vosk.PartialResult()).get("partial"):
+                try:
+                    data = q.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+                if self.vosk.AcceptWaveform(data):
                     text = json.loads(self.vosk.Result()).get("text", "")
                     if text:
                         print(f"Aap: {text}")
                         return text.lower()
+                if time.time() > deadline + 10:
+                    break
+        return None

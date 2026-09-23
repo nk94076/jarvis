@@ -31,3 +31,11 @@ def wikipedia_summary(topic, sentences=5):
 def mausam(shehar=""):
     import requests
     return requests.get(f"https://wttr.in/{shehar}?format=3", timeout=8).text.strip()
+
+
+def mausam_hud(shehar=""):
+    """HUD ke liye (temperature, 'City · Condition')."""
+    import requests
+    raw = requests.get(f"https://wttr.in/{shehar}?format=%t|%C|%l", timeout=8).text.strip()
+    temp, cond, place = (raw.split("|") + ["", "", ""])[:3]
+    return temp.replace("+", ""), f"{place.split(',')[0].strip()} · {cond.strip()}"

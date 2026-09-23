@@ -23,6 +23,8 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 
 Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likho, aur `JARVIS.bat` ka shortcut us folder mein daal do.
 
+**`No module named 'pyttsx3'` jaisa error aaye:** `setup.bat` dobara chalao. Ab wo har library alag se install karta hai aur batata hai kaunsi fail hui. `pyaudio` fail ho to Python **3.12** use karo.
+
 ## Setup (manual, ek baar)
 
 1. **Python 3.10+** install karo (python.org, "Add to PATH" tick karna).
@@ -46,8 +48,10 @@ Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likh
 python main.py              # HUD screen + awaaz
 python main.py --cli        # bina screen ke
 python main.py --text       # type karke test karo
-python main.py --text --gui # screen ke saath, type karke
+python main.py --text --gui # screen ke saath, sirf type karke
 ```
+
+HUD mein neeche ek **type box** bhi hai: command likho aur Enter dabao (usme "Jarvis" likhna zaroori nahi).
 
 Har command se pehle **"Jarvis"** bolo, jaise *"Jarvis, open YouTube"*. Sirf "Jarvis" bolo to wo "Yes Sir?" bol kar command ka intezaar karega.
 `F11` se full screen hota hai, `Esc` se band.

@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 title JARVIS Setup
 cd /d "%~dp0"
 echo ================================
@@ -26,11 +27,21 @@ call .venv\Scripts\activate
 
 echo [2/3] Libraries install kar raha hoon (kuch minute lagenge)...
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-if errorlevel 1 (
-    echo [!] Kuch libraries fail hui. pyaudio ke liye try kar raha hoon...
-    pip install pipwin && pipwin install pyaudio
+rem Har library alag se, taaki ek fail ho to baaki ruk na jaayein
+set FAILED=
+for /f "usebackq delims=" %%p in ("requirements.txt") do (
+    echo     - %%p
+    pip install -q %%p
+    if errorlevel 1 set FAILED=!FAILED! %%p
 )
+if defined FAILED (
+    echo.
+    echo [!] Ye install nahi hui:!FAILED!
+    echo     pyaudio fail ho to Python 3.12 use karo, 3.13/3.14 par iska installer nahi milta.
+)
+
+echo Check kar raha hoon...
+python -c "import pyttsx3, speech_recognition, psutil, ollama; print('    [OK] Zaroori libraries ready hain')"
 
 echo [3/3] JARVIS ka dimaag download kar raha hoon (~2GB, sirf ek baar)...
 ollama pull qwen2.5:3b
