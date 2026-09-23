@@ -85,6 +85,15 @@ def open_explorer_folders():
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
+QUESTION_WORDS = ["what", "who", "how", "why", "when", "where", "which", "kya", "kaun", "kon", "kaise", "kyu",
+                  "kitna", "kitne", "kitni", "kab", "kahan", "batao", "bataiye", "explain", "ke bare", "ke baare",
+                  "pata hai", "matlab", "meaning", "tell me"]
+
+
+def is_question(cmd):
+    return any(w in cmd for w in QUESTION_WORDS)
+
+
 def is_task(cmd):
     """Kya ye koi kaam hai (sirf baatcheet ya sawaal nahi)?"""
     return any(w in cmd for w in TASK_WORDS)
@@ -251,14 +260,14 @@ class Skills:
 
         # ---- apps aur websites ----
         if any(w in cmd for w in ["open", "kholo", "khol"]):
+            for name, cmds in APPS.items():          # pehle apps ("google chrome" = Chrome app)
+                if name in cmd:
+                    subprocess.Popen(cmds[platform.system()], shell=True)
+                    return f"{name} is open, {s}."
             for name, url in WEBSITES.items():
                 if name in cmd:
                     webbrowser.open(url)
                     return f"Opening {name}, {s}."
-            for name, cmds in APPS.items():
-                if name in cmd:
-                    subprocess.Popen(cmds[platform.system()], shell=True)
-                    return f"{name} is open, {s}."
             jawab = extra.open_any_site(cmd, s)
             if jawab:
                 return jawab
@@ -278,10 +287,10 @@ class Skills:
                 except Exception:
                     webbrowser.open(f"https://www.youtube.com/results?search_query={song}")
                 return f"Playing {song} on YouTube, {s}."
-            query = _after(cmd, "search", "google") or cmd
-            results = internet.search(query)
-            info = "\n".join(r.get("body", "") for r in results)
-            return self.brain.socho(f"Internet se mili jaankari:\n{info}\n\nIs se jawab do: {cmd}")
+            q = extra.search_query(cmd) if re.search(r"search|dhundo|dhoondo|look up", cmd) else None
+            if q:
+                webbrowser.open("https://www.google.com/search?q=" + extra.quote(q))
+                return f"Searching {q} on Google, {s}."
 
         if "shutdown" in cmd:
             return f"{s}, for safety I don't shut down the system myself. Please do it manually."
@@ -289,5 +298,9 @@ class Skills:
         # ---- baaki sab: baatcheet, seekhi hui jaankari ke saath ----
         if agent_mod.needs_agent(cmd):
             return self.agent.run(cmd)          # multi-step: Main Brain tools ke saath
-        context = "\n\n".join(c for c in [extra.facts_text(), self.knowledge.context(cmd)] if c)
-        return self.brain.socho(cmd, extra_context=context)
+        context = [extra.facts_text(), self.knowledge.context(cmd)]
+        if is_question(cmd) and internet.internet_hai():   # sawaal hai to internet se taaza jaankari
+            web = internet.search(cmd, max_results=5)
+            context.append("Internet se abhi mili jaankari (isi par jawab do):\n" +
+                           "\n".join(f"- {r.get('title')}: {r.get('body')}" for r in web))
+        return self.brain.socho(cmd, extra_context="\n\n".join(c for c in context if c))

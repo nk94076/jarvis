@@ -239,7 +239,7 @@ class HUD:
         # ---- status panel ----
         self.panel(20, 655, 400, 880, "CORE STATUS")
         rows = [("MODE", self.info.get("mode", "--")), ("BRAIN", self.info.get("brain", "--")),
-                ("VOICE", self.info.get("voice", "--")), ("KNOWLEDGE", f"{self.info.get('learnt', '0')} topics"),
+                ("VOICE", self.info.get("voice", "--")), ("KNOWLEDGE", self.info.get("learnt", "0")),
                 ("NET", f"↓{self.net_down:.0f} KB/s  ↑{self.net_up:.0f} KB/s")]
         for i, (k, v) in enumerate(rows):
             y = 705 + i * 34

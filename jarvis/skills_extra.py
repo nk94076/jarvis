@@ -164,12 +164,34 @@ def battery(cmd, s):
 
 
 def system_status(cmd, s):
-    if not _has(cmd, "system status", "cpu", "ram", "memory usage", "pc kaisa", "laptop kaisa", "system kaisa"):
+    if not _has(cmd, "system status", "cpu", "ram ", "ram?", "memory usage", "pc kaisa", "laptop kaisa", "system kaisa") \
+            and not cmd.endswith("ram"):
         return None
     import psutil
     disk = psutil.disk_usage("C:\\" if WIN else "/")
     return (f"{s}, CPU usage is {psutil.cpu_percent(interval=0.5):.0f} percent, RAM is "
             f"{psutil.virtual_memory().percent:.0f} percent used, and disk is {disk.percent:.0f} percent full.")
+
+
+def storage(cmd, s):
+    if not _has(cmd, "storage", "space", "hard disk", "harddisk", "disk", "ssd", "memory bhari", "kitna bhara"):
+        return None
+    import psutil
+    parts = []
+    for p in psutil.disk_partitions():
+        if "cdrom" in p.opts or not p.fstype:
+            continue
+        try:
+            u = psutil.disk_usage(p.mountpoint)
+        except (PermissionError, OSError):
+            continue
+        if u.total < 2e9:
+            continue
+        parts.append(f"{p.device.rstrip(chr(92)).rstrip(':')} drive has {u.used / 1e9:.0f} GB used out of "
+                     f"{u.total / 1e9:.0f} GB, {u.free / 1e9:.0f} GB free")
+        if len(parts) >= 4:
+            break
+    return f"{s}, " + ". ".join(parts) + "." if parts else f"{s}, I could not read the disk."
 
 
 def ip_address(cmd, s):
@@ -388,14 +410,56 @@ def website(cmd, s):
     return None
 
 
+SITES = {"chatgpt": "https://chatgpt.com", "chat gpt": "https://chatgpt.com", "claude": "https://claude.ai",
+         "gemini": "https://gemini.google.com", "amazon": "https://www.amazon.in", "flipkart": "https://www.flipkart.com",
+         "linkedin": "https://www.linkedin.com", "facebook": "https://www.facebook.com", "twitter": "https://x.com",
+         "netflix": "https://www.netflix.com", "hotstar": "https://www.hotstar.com", "github": "https://github.com",
+         "google ads": "https://ads.google.com", "analytics": "https://analytics.google.com",
+         "google drive": "https://drive.google.com", "drive": "https://drive.google.com", "maps": "https://maps.google.com",
+         "google maps": "https://maps.google.com", "calendar": "https://calendar.google.com", "meet": "https://meet.google.com",
+         "canva": "https://www.canva.com", "spotify": "https://open.spotify.com", "chrome web store": "https://chromewebstore.google.com"}
+FILLER = ["ek kaam karo", "ek kam karo", "please", "jarvis", "ok", "now", "abhi", "mere liye", "zara"]
+
+
+def _strip(text, words):
+    for w in sorted(words, key=len, reverse=True):
+        text = re.sub(rf"\b{re.escape(w)}\b", " ", text)
+    return " ".join(text.split())
+
+
 def open_any_site(cmd, s):
-    """Jab koi app/website list mein na ho: 'open flipkart' -> flipkart.com."""
-    m = re.search(r"(?:open|kholo|khol do)\s+([a-z0-9]+)$", cmd) or re.search(r"^([a-z0-9]+)\s+(?:kholo|khol do|open karo)$", cmd)
-    if not m or m.group(1) in ("it", "this", "that", "karo", "do"):
+    """Jab koi app list mein na ho: 'open chat gpt', 'amazon kholo', 'open adhook media'."""
+    m = re.search(r"(?:open|kholo|khol do)\s+(.+)", cmd) or re.search(r"^(.+?)\s+(?:kholo|khol do|open karo|open kar do)$", cmd)
+    if not m:
         return None
-    site = m.group(1)
-    webbrowser.open(f"https://www.{site}.com")
-    return f"Opening {site} dot com, {s}."
+    name = _strip(m.group(1), FILLER + ["karo", "kar do", "website", "site", "app", "the", "browser mein", "chrome mein"])
+    if not name or name in ("it", "this", "that"):
+        return None
+    for key, url in SITES.items():
+        if key == name or key.replace(" ", "") == name.replace(" ", ""):
+            webbrowser.open(url)
+            return f"Opening {key}, {s}."
+    # pata nahi to DuckDuckGo "I'm feeling lucky": naam ki pehli website khul jati hai
+    webbrowser.open("https://duckduckgo.com/?q=" + quote("! " + name))
+    return f"Opening {name}, {s}."
+
+
+def search_query(cmd):
+    """'search affiliate marketing in google', 'google par adhook media search karo',
+    'adhook media search karo google pe', 'chrome and search X' -> query."""
+    pats = [r"(?:search|dhundo|dhoondo|look up)\s+(?:for\s+)?(.+?)\s+(?:in|on|par|pe|mein|me)\s+(?:google|chrome|browser|internet)",
+            r"(?:google|chrome|browser|internet)\s+(?:par|pe|mein|me|on|in|and)?\s*(?:search\s+)?(.+?)\s+(?:search|dhundo|dhoondo)(?:\s+(?:karo|kar do))?$",
+            r"(.+?)\s+(?:google|chrome)\s+(?:par|pe|mein|me|on|in)\s+(?:search|dhundo|dhoondo)",
+            r"(?:google|chrome|browser)\s+(?:and\s+|par\s+|pe\s+)?search\s+(.+)",
+            r"(?:google search|search|google)\s+(.+)",
+            r"(.+?)\s+(?:search|dhundo|dhoondo)\s+(?:karo|kar do)"]
+    for p in pats:
+        m = re.search(p, cmd)
+        if m:
+            q = _strip(m.group(1), FILLER + ["karo", "kar do", "google", "chrome", "par", "pe", "mein", "on", "in"])
+            if q:
+                return q
+    return None
 
 
 # ---------------- aapka data ----------------
@@ -544,6 +608,6 @@ def help_text(cmd, s):
 
 
 # Order matters: pehle specific, baad mein general
-SIMPLE = [help_text, memory, todo, screenshot, battery, system_status, ip_address, windows_control,
+SIMPLE = [help_text, memory, todo, screenshot, battery, storage, system_status, ip_address, windows_control,
           volume, brightness, media, calculator, fun, news, whatsapp, email, clipboard, type_text,
           find_file, website, who_is]

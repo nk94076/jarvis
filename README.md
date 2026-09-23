@@ -13,7 +13,7 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 - **Offline + Online:** internet na ho to bhi baat karta hai. Internet ho to search, weather, YouTube bhi.
 - **Internet se seekhta hai:** "seekho <topic>" bolo, wo padh kar notes bana lega aur yaad rakhega.
 - **Batata hai kya seekha:** "kya seekha" bolo.
-- **Memory:** band karke dobara kholo, pichli baatein yaad rehti hain.
+- **Memory:** `C:\Users\<aap>\JARVIS Data` mein save hoti hai, isliye naya version download karne par bhi nahi mitti.
 
 ## Windows par aasaan setup
 

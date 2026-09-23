@@ -65,10 +65,14 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.stop = interrupt
     s = config.USER_NAME
 
+    def knowledge_info():
+        from jarvis.skills_extra import FACTS_FILE, _load
+        return f"{len(knowledge.items)} topics, {len(_load(FACTS_FILE, []))} facts"
+
     online = internet.internet_hai()
     hud.post("info", {"mode": "ONLINE" if online else "OFFLINE", "brain": config.OLLAMA_MODEL,
                       "voice": "MIC + KEYBOARD" if voice.mic_ok and not text_mode else "KEYBOARD",
-                      "learnt": str(len(knowledge.items))})
+                      "learnt": knowledge_info()})
     if online:
         try:
             hud.post("weather", internet.mausam_hud())
@@ -164,7 +168,7 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
             interrupt.clear()
             hud.post("said")
             voice.bolo(f"Okay {s}, stopped.")
-        hud.post("info", {"learnt": str(len(knowledge.items)),
+        hud.post("info", {"learnt": knowledge_info(),
                           "mode": "ONLINE" if internet.internet_hai() else "OFFLINE"})
         hud.post("state", "listen")
         last_talk = time.time()

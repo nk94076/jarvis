@@ -1,5 +1,14 @@
 """Dimaag: Ollama ka local model, baatcheet ki memory ke saath."""
 import json
+import re
+
+
+def clean(text):
+    """Bolne layak text: markdown (** ## ` -), 'Q:' jaisa kachra hatao."""
+    text = re.sub(r"\*\*?Q:.*?(\*\*|$)", " ", text, flags=re.M)
+    text = re.sub(r"[*#`_>]+", "", text)
+    text = re.sub(r"^\s*[-•]\s+", "", text, flags=re.M)
+    return re.sub(r"\s+", " ", text).strip()
 
 from . import config
 
@@ -25,8 +34,9 @@ class Brain:
             "\nAaj %A, %d %B %Y hai aur abhi %I:%M %p baje hain. Kal (tomorrow) ka din isi se nikalo.")
         if extra_context:
             system += "\n\nYe jaankari tumne pehle seekhi hai, zaroorat ho to use karo:\n" + extra_context
+        system += "\nSirf seedha jawab do. Sawaal dobara mat likho, 'Q:' ya headings mat banao."
         self.history.append({"role": "user", "content": sawaal})
-        jawab = self._chat([{"role": "system", "content": system}] + self.history)
+        jawab = clean(self._chat([{"role": "system", "content": system}] + self.history[-12:]))
         self.history.append({"role": "assistant", "content": jawab})
         self.history = self.history[-config.MAX_HISTORY:]
         config.MEMORY_FILE.write_text(json.dumps(self.history, ensure_ascii=False, indent=1), encoding="utf-8")

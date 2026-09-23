@@ -412,9 +412,13 @@ class Agent:
             m = re.search(pattern, cmd)
             return m.group(1).strip(" .?") if m else None
 
+        if re.search(r"start (button|menu)|windows (button|key|menu)", cmd):
+            self.call("press_keys", {"keys": "win"})
+            return f"Opened the Start menu, {s}."
         if re.search(r"(read|padho|padh do).*(screen)|screen (par|pe) kya|what.*on (my )?screen", cmd):
             text = self.call("read_screen", {})
-            return f"{s}, your screen says: {text[:600]}"
+            lines = [line for line in text.splitlines() if len(line) > 3][:8]
+            return f"{s}, I can see: " + ". ".join(lines)[:300]
         x = after(r"^(.+?)\s+(?:par|pe) click(?: karo| kar do)?$") or after(r"(?:click on|click karo)\s+(.+)")
         if x:
             return f"{s}, " + self.call("click_text", {"text": x})
@@ -433,21 +437,35 @@ class Agent:
             if any(w in cmd for w in words):
                 self.call("browser_action", {"action": action})
                 return f"Done, {s}."
-        x = after(r"(?:deep research|research)\s+(?:karo|kar do)?\s*(?:on|about|par|pe)?\s*(.+)") or \
-            after(r"(.+?)\s+(?:par|pe|ke bare mein|ke baare mein)\s+research")
-        if x:
-            out = self.call("deep_research", {"topic": x})
-            if out.startswith("REPORT SAVED"):
-                summary = out.split("\n\n", 1)[1].split("\n")[0:3]
-                return f"{s}, research is complete and the report is saved in Documents, JARVIS Reports. " + " ".join(summary)[:400]
-            return out
-        x = after(r"(?:read|padho|summarize|summary)\s+(?:the\s+)?(?:pdf|p d f)\s+(.+)") or \
-            after(r"(.+?)\s+(?:pdf|p d f)\s+(?:padho|summarize|ki summary|summary)")
-        if x:
-            text = self.call("read_pdf", {"name": x})
-            if text.startswith("PDF:"):
-                return llm(f"Is PDF ki 4-5 line ki simple summary do (spoken English, no markdown):\n{text}")
-            return text
+        if "research" in cmd:
+            if any(w in cmd for w in ["kiya hai", "kya research", "yaad", "remember", "kiya tha"]):
+                return self.skills.knowledge.kya_seekha() if self.skills else None
+            topic = research_topic(cmd)
+            if topic:
+                out = self.call("deep_research", {"topic": topic})
+                if out.startswith("REPORT SAVED"):
+                    report = out.split("\n\n", 1)[1]
+                    if self.skills:
+                        self.skills.knowledge.add(topic, report, [])
+                    from .brain import clean
+                    summary = clean(re.sub(r"(?im)^#+.*$", "", report))[:350]
+                    return (f"{s}, research on {topic} is complete. I have saved it in my memory and in Documents, "
+                            f"JARVIS Reports. {summary}")
+                return out
+        if re.search(r"\bpdf\b|p d f", cmd) and re.search(r"read|padh|open|khol|summar|batao|sunao|dikhao", cmd):
+            name = pdf_name(cmd)
+            path = find_pdf(name)
+            if not path:
+                return f"Sorry {s}, I could not find a PDF named {name or 'that'} in Desktop, Documents or Downloads."
+            if re.search(r"open|khol|dikhao", cmd) and sys.platform == "win32":
+                os.startfile(str(path))
+            if re.search(r"read|padh|summar|batao|sunao", cmd):
+                text = self.call("read_pdf", {"name": str(path)})
+                if text.startswith("PDF:"):
+                    return f"{s}, I found {path.name}. " + llm(
+                        f"Is PDF ki 4-5 line ki simple summary do (spoken English, no markdown):\n{text}")
+                return text
+            return f"Opening {path.name}, {s}."
         x = after(r"(?:check|analyze|analyse)\s+(?:my\s+)?(.+?)\s+project") or after(r"(?:mera|my)\s+(.+?)\s+project\s+check")
         if x:
             out = self.call("check_project", {"repo": x})
@@ -468,6 +486,57 @@ class Agent:
         if x:
             return self.call("review_code", {"path": x})[:800]
         return None
+
+
+RESEARCH_FILLER = ["ek kaam karo", "ek kam karo", "google se", "internet se", "web se", "deep research",
+                   "research", "karo", "kar do", "karke", "ke bare mein", "ke baare mein", "ke bare me", "about",
+                   "on", "par", "pe", "please", "jarvis", "detail mein", "achhe se", "puri", "poori"]
+PDF_STOP = {"pdf", "p", "d", "f", "read", "padho", "padh", "kar", "karo", "do", "open", "kholo", "khol", "usko",
+            "use", "isko", "aur", "batao", "bata", "folder", "downloads", "download", "documents", "desktop", "mein",
+            "me", "main", "ek", "pada", "padi", "hai", "from", "the", "in", "file", "summary", "summarize", "ki",
+            "ka", "ke", "wali", "naam", "named", "my", "mera", "meri", "se", "and", "it", "please", "sunao", "ko",
+            "dikhao", "of", "a", "jo", "hua", "hui", "rakha", "rakhi", "wala"}
+
+
+def research_topic(cmd):
+    """'ek kaam karo affiliate marketing ke bare mein google se research karo aur memory mein store karo'
+    -> 'affiliate marketing'"""
+    parts = re.split(r"\s+(?:aur|and then|and|phir|then|uske baad)\s+", cmd)
+    part = next((p for p in parts if "research" in p), cmd)
+    for w in sorted(RESEARCH_FILLER, key=len, reverse=True):
+        part = re.sub(rf"\b{re.escape(w)}\b", " ", part)
+    return " ".join(part.split())
+
+
+def pdf_name(cmd):
+    return " ".join(w for w in re.findall(r"[a-z0-9]+", cmd) if w not in PDF_STOP)
+
+
+def find_pdf(name):
+    """Desktop/Documents/Downloads/OneDrive mein PDF dhoondo; naam thoda alag ho tab bhi (fuzzy)."""
+    import difflib
+    key = re.sub(r"[^a-z0-9]", "", name.lower())
+    pdfs = []
+    for base in [HOME / "Downloads", HOME / "Desktop", HOME / "Documents", HOME / "OneDrive"]:
+        if not base.exists():
+            continue
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("node_modules", "AppData")]
+            pdfs += [Path(root) / f for f in files if f.lower().endswith(".pdf")]
+            if len(pdfs) > 3000:
+                break
+    if not pdfs:
+        return None
+    if not key:                                   # naam nahi bola: sabse nayi PDF
+        return max(pdfs, key=lambda p: p.stat().st_mtime)
+
+    def score(p):
+        stem = re.sub(r"[^a-z0-9]", "", p.stem.lower())
+        if key in stem:
+            return 2 + len(key) / max(len(stem), 1)
+        return difflib.SequenceMatcher(None, key, stem).ratio()
+    best = max(pdfs, key=score)
+    return best if score(best) >= 0.55 else None
 
 
 AGENT = None

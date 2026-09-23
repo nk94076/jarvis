@@ -48,6 +48,13 @@ class Knowledge:
         pehli_line = notes.splitlines()[0] if notes else ""
         return f"{config.USER_NAME}, I have learnt about {topic}. {pehli_line}"
 
+    def add(self, topic, notes, sources=()):
+        """Research ya kisi aur jagah se aayi jaankari knowledge mein jodo."""
+        self.items = [i for i in self.items if i["topic"] != topic]
+        self.items.append({"topic": topic, "notes": notes, "sources": list(sources),
+                           "date": datetime.now().strftime("%Y-%m-%d %H:%M")})
+        self._save()
+
     def kya_seekha(self):
         if not self.items:
             return f"{config.USER_NAME}, I have not learnt anything yet. Just say learn, and the topic name."

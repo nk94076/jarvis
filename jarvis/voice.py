@@ -118,6 +118,8 @@ class Voice:
     def bolo(self, text):
         if self.stop.is_set():
             return
+        from .brain import clean
+        text = clean(text)
         print(f"JARVIS: {text}")
         self.on_say(text)
         try:

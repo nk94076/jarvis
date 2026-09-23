@@ -1,12 +1,13 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "5.0"
+VERSION = "5.1"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
 VOSK_MODEL_DIR = "model"             # offline speech model ka folder
-DATA_DIR = Path("data")              # memory aur knowledge yahan save hoti hai
+# Memory aur knowledge user ke home mein, taaki naya version download karne par bhi na mite
+DATA_DIR = Path.home() / "JARVIS Data"
 MEMORY_FILE = DATA_DIR / "memory.json"
 KNOWLEDGE_FILE = DATA_DIR / "knowledge.json"
 MAX_HISTORY = 40                     # kitni purani baatein yaad rakhe
@@ -34,6 +35,18 @@ EMAILS = {
     # "boss": "boss@example.com",
 }
 SLEEP_WORDS = ["so jao", "sleep", "go to sleep", "standby", "chup ho jao"]
+
+def _migrate_old_data():
+    """Purane version ke 'data' folder se knowledge/facts/todo naye DATA_DIR mein le aao (ek baar)."""
+    import shutil
+    old = Path("data")
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for name in ("knowledge.json", "facts.json", "todo.json", "activity.log"):
+        if (old / name).exists() and not (DATA_DIR / name).exists():
+            shutil.copy(old / name, DATA_DIR / name)
+
+
+_migrate_old_data()
 
 SYSTEM_PROMPT = f"""Tum JARVIS ho, {USER_NAME} ke personal AI assistant, bilkul Iron Man ke JARVIS jaise.
 User ko '{USER_NAME}' bolo. User Hinglish mein bolega (jaise "kal kaun sa din hai"), use samjho. Reply in short (1-3 sentences), natural Indian English, like a polite Indian assistant.
