@@ -322,6 +322,14 @@ def t_check_project(repo):
     return f"REPORT SAVED: {out}\n\n" + "\n\n".join(parts)[:3000]
 
 
+@tool("build_landing_page", "Kisi topic par sundar HTML landing page/website banao aur browser mein kholo",
+      {"topic": ("string", "page kis baare mein ho, rang bhi likh sakte ho jaise 'gym red'")})
+def t_build_page(topic):
+    from . import builder
+    path, msg = builder.build(f"landing page banao {topic}", llm)
+    return f"{msg} FILE: {path}"
+
+
 @tool("run_jarvis_command", "JARVIS ki koi bhi seedhi command chalao: apps kholna/band karna, volume, screenshot, "
       "timer, notepad, whatsapp, weather, todo, etc.", {"command": ("string", "jaise 'open notepad', 'volume 50 karo'")})
 def t_jarvis_command(command):

@@ -11,6 +11,7 @@ from . import config, internet
 from . import skills_extra as extra
 from . import agent as agent_mod
 from .learner import Learner, subject_from
+from . import builder
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -37,7 +38,7 @@ WEBSITES = {"youtube": "https://youtube.com", "google": "https://google.com",
 TASK_WORDS = ["open", "kholo", "khol", "play", "chalao", "learn", "seekho", "sikho",
               "search", "google", "bhool jao", "forget everything", "likho", "likh do", "write", "type",
               "close", "band kar", "bandh", "lock", "screenshot", "whatsapp", "email", "find file",
-              "research", "project", "pdf", "organize", "organise", "run command"]
+              "research", "project", "pdf", "organize", "organise", "run command", "landing", "website", "banao"]
 FOLDER_QUESTIONS = ["kaun sa folder", "kon sa folder", "which folder", "konsa folder", "kaunsa folder",
                     "folders open", "folder khula", "open folders"]
 HOME = Path.home()
@@ -206,6 +207,10 @@ class Skills:
         if re.search(r"(code|software|version|jarvis)\s+(update|updte)|update (your )?(code|software|version)|naya version", cmd):
             self.pending = "code_update"
             return f"{s}, should I download the latest version of my code? Your memory will stay safe. Say yes or no."
+
+        # ---- website / landing page banana ----
+        if builder.wants_page(cmd):
+            return builder.build(cmd, agent_mod.llm)[1]
 
         # ---- seekhna ----
         jawab = self.learning(cmd)

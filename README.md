@@ -32,6 +32,14 @@ Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likh
 - Aapki memory, knowledge aur settings `C:\Users\<aap>\JARVIS Data` mein safe rehti hain.
 - Apni settings (naam, contacts, projects, model) **`JARVIS Data\my_settings.py`** mein likho. Ye update par nahi mitti.
 
+## 🌐 Website Builder
+
+Bolo: *"gym ke liye HTML landing page banao"*, *"coffee shop ki website banao red color mein"*.
+JARVIS content likhta hai, sundar responsive page banata hai, browser mein kholta hai aur
+`Documents\JARVIS Projects\<topic>\index.html` mein save karta hai. Rang: red, blue, green, purple, orange, pink, teal, black, gold.
+
+![Landing page example](docs/landing-example.png)
+
 ## 📚 Learning Agent
 
 | Bolo | Kya hoga |
