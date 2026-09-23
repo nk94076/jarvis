@@ -26,6 +26,23 @@ Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likh
 
 **`No module named 'pyttsx3'` jaisa error aaye:** `setup.bat` dobara chalao. Ab wo har library alag se install karta hai aur batata hai kaunsi fail hui. JARVIS ab `pyaudio` ke bina chalta hai, isliye Python 3.12, 3.13 ya 3.14 sab chalenge.
 
+## 🔄 Update kaise karein
+
+- **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.
+- Aapki memory, knowledge aur settings `C:\Users\<aap>\JARVIS Data` mein safe rehti hain.
+- Apni settings (naam, contacts, projects, model) **`JARVIS Data\my_settings.py`** mein likho. Ye update par nahi mitti.
+
+## 📚 Learning Agent
+
+| Bolo | Kya hoga |
+|---|---|
+| `internet se python learn karna start karo`, `php seekho`, `mujhe react sikhao` | Background mein poora subject (10 chapters) internet se seekhta hai |
+| `learning status`, `kya kya seekha` | Kitna seekha |
+| `learning band karo` / `resume learning` | Rokna / aage seekhna (JARVIS dobara chalane par apne aap aage seekhta hai) |
+| `khud ko upgrade kar lo` | Seekhe hue subjects ko taaza jaankari se dobara seekhta hai |
+| `python mein loops kya hote hain` | Seekhe hue notes se jawab |
+| `memory delete karo` | Sab gyaan mitata hai, **sirf "yes" bolne par** |
+
 ## Setup (manual, ek baar)
 
 1. **Python 3.10+** install karo (python.org, "Add to PATH" tick karna).

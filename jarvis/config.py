@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "5.1"
+VERSION = "5.3"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -61,3 +61,25 @@ brightness, media control, screenshot, battery, timer/reminder/alarm, calculator
 baatein yaad rakhna, clipboard, typing, file dhoondhna, WhatsApp/Gmail kholna, internet search, weather, seekhna.
 Agar user inme se koi kaam maange aur tum tak pahunch gaya, to use sahi shabdon mein command dene ko kaho
 (jaise "volume 50 karo", "remind me in 10 minutes to drink water"). "help" bolne par poori list milti hai."""
+
+
+# ---- Aapki apni settings (update par nahi mitti) ----
+# JARVIS Data\my_settings.py mein jo likhoge wo upar ki settings ko badal dega.
+MY_SETTINGS = DATA_DIR / "my_settings.py"
+if not MY_SETTINGS.exists():
+    MY_SETTINGS.write_text('''# JARVIS ki aapki settings. Ye file update karne par nahi mitti.
+# Jo line chahiye uske aage se # hatao aur apni value likho.
+
+# USER_NAME = "Sir"
+# OLLAMA_MODEL = "qwen2.5:3b"
+# AGENT_MODEL = "qwen2.5:7b"
+# MIC_SENSITIVITY = 2.0
+# TTS_VOICE = "en-IN-PrabhatNeural"
+# CONTACTS["mom"] = "+919876543210"
+# EMAILS["boss"] = "boss@example.com"
+# PROJECTS["website"] = r"C:\\Users\\Naveen\\Projects\\website"
+''', encoding="utf-8")
+try:
+    exec(MY_SETTINGS.read_text(encoding="utf-8"), globals())
+except Exception as _e:
+    print(f"[config] my_settings.py mein galti: {_e}")

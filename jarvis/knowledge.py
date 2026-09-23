@@ -59,7 +59,7 @@ class Knowledge:
         if not self.items:
             return f"{config.USER_NAME}, I have not learnt anything yet. Just say learn, and the topic name."
         topics = ", ".join(i["topic"] for i in self.items[-10:])
-        return f"{config.USER_NAME}, I have learnt {len(self.items)} topics so far. Recent ones are: {topics}."
+        return f"I have {len(self.items)} topics in my memory. Recent ones are: {topics}."
 
     def batao(self, topic):
         item = self.dhoondo(topic, limit=1)
@@ -77,4 +77,4 @@ class Knowledge:
         return [i for _, i in scored[:limit]]
 
     def context(self, query):
-        return "\n\n".join(f"{i['topic']}:\n{i['notes']}" for i in self.dhoondo(query))
+        return "\n\n".join(f"{i['topic']}:\n{i['notes'][:1500]}" for i in self.dhoondo(query, limit=3))

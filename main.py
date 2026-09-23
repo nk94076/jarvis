@@ -63,6 +63,8 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.confirm = confirm
     skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
     skills.agent.stop = interrupt
+    skills.learner.notify = lambda msg: (hud.post("log", "📚 " + msg[:60]),
+                                         hud.post("info", {"learnt": knowledge_info()}), voice.bolo(msg))
     s = config.USER_NAME
 
     def knowledge_info():
@@ -80,6 +82,8 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
             pass
     voice.bolo(f"Hello {s}, JARVIS is online. Say Hey Jarvis to wake me up."
                if online else f"Hello {s}, JARVIS is ready in offline mode. Say Hey Jarvis to wake me up.")
+    if skills.learner.resume():
+        voice.bolo(f"{s}, I am continuing my pending learning: {', '.join(skills.learner.state['queue'])}.")
     hud.post("state", "sleep")
 
     active = False          # "Hey Jarvis" ke baad True; chup rehne par wapas False

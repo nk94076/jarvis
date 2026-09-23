@@ -10,6 +10,7 @@ from pathlib import Path
 from . import config, internet
 from . import skills_extra as extra
 from . import agent as agent_mod
+from .learner import Learner, subject_from
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -131,6 +132,26 @@ class Skills:
         self.timers = extra.Timers()
         self.agent = agent_mod.Agent(self)
         agent_mod.AGENT = self.agent
+        self.learner = Learner(knowledge, lambda prompt: agent_mod.llm(prompt))
+
+    def learning(self, cmd):
+        """Seekhne se jude saare commands. Match na ho to None."""
+        s = config.USER_NAME
+        if re.search(r"(stop|band|pause|ruk)\w*\s+(learning|seekhna|sikhna)|(learning|seekhna|sikhna)\s+(band|stop|roko|pause)", cmd):
+            return self.learner.stop()
+        if re.search(r"resume learning|continue learning|seekhna (jaari|continue|wapas)|learning (resume|continue|wapas)", cmd):
+            return (f"Resuming learning, {s}." if self.learner.resume()
+                    else f"{s}, there is nothing pending to learn.")
+        if re.search(r"upgrade (yourself|karo|kar lo|karlo)|khud ko upgrade|apne aap ko upgrade|self upgrade", cmd):
+            return self.learner.upgrade()
+        if re.search(r"learning status|kya seekh rahe|kya sikh rahe|kitna seekha|kitna sikha|kya kya seekha|kya kya sikha|"
+                     r"kya seekha|kya sikha|what did you learn|what have you learn|what are you learning", cmd):
+            return self.learner.status() + " " + self.knowledge.kya_seekha()
+        if cmd.startswith(("notes", "seekha hua batao")):
+            return self.knowledge.batao(_after(cmd, "notes", "batao"))
+        if re.search(r"\b(learn|seekh|sikh|seekho|sikho)\w*", cmd) and not is_question(cmd.replace("kya seekh", "")):
+            return self.learner.start(subject_from(cmd))
+        return None
 
     def write_notepad(self, text):
         NOTES_DIR.mkdir(parents=True, exist_ok=True)
@@ -152,6 +173,44 @@ class Skills:
         if self.pending == "notepad":
             self.pending = None
             return self.write_notepad(cmd)
+
+        if self.pending == "wipe":
+            self.pending = None
+            if any(w in cmd.split() for w in ["yes", "haan", "ha", "han", "confirm"]):
+                self.knowledge.items = []
+                self.knowledge._save()
+                self.learner.state = {"queue": [], "subjects": {}}
+                self.learner._save()
+                extra._save(extra.FACTS_FILE, [])
+                self.brain.bhool_jao()
+                return f"Done {s}. I have deleted all my memory and knowledge."
+            return f"Okay {s}, your memory is safe. Nothing was deleted."
+
+        # ---- memory delete: sirf aapke kehne par, confirm ke saath ----
+        if re.search(r"(memory|knowledge|yaadasht|gyaan)\s+(delete|clear|saaf|mita)|delete (all )?(memory|knowledge)|"
+                     r"sab kuch bhool jao|forget everything", cmd):
+            self.pending = "wipe"
+            return (f"{s}, this will delete everything I have learnt and remembered. "
+                    f"Are you sure? Say yes to delete.")
+
+        # ---- apna code update (update.bat) ----
+        if self.pending == "code_update":
+            self.pending = None
+            if any(w in cmd.split() for w in ["yes", "haan", "ha", "han", "confirm"]):
+                bat = Path(__file__).resolve().parent.parent / "update.bat"
+                if platform.system() == "Windows" and bat.exists():
+                    subprocess.Popen(["cmd", "/c", "start", "", str(bat)], cwd=str(bat.parent))
+                    return f"{s}, the update window is open. When it finishes, close me and start JARVIS again."
+                return f"{s}, please run update.bat from the JARVIS folder."
+            return f"Okay {s}, no update."
+        if re.search(r"(code|software|version|jarvis)\s+(update|updte)|update (your )?(code|software|version)|naya version", cmd):
+            self.pending = "code_update"
+            return f"{s}, should I download the latest version of my code? Your memory will stay safe. Say yes or no."
+
+        # ---- seekhna ----
+        jawab = self.learning(cmd)
+        if jawab:
+            return jawab
 
         # ---- notepad mein likhna ----
         note = notepad_text(cmd)
@@ -239,17 +298,9 @@ class Skills:
                     open_path(path)
                     return f"Opening your {path.name} folder, {s}."
 
-        # ---- seekhna ----
-        if cmd.startswith(("seekho", "sikho", "learn")):
-            topic = _after(cmd, "seekho", "sikho", "learn", "about").removeprefix("about").strip()
-            return self.knowledge.seekho(topic) if topic else f"What should I learn, {s}?"
-        if any(w in cmd for w in ["kya seekha", "kya sikha", "what did you learn", "what have you learned", "what have you learnt"]):
-            return self.knowledge.kya_seekha()
-        if cmd.startswith(("notes", "seekha hua batao")):
-            return self.knowledge.batao(_after(cmd, "notes", "batao"))
-        if any(w in cmd for w in ["bhool jao", "forget everything"]):
+        if cmd.strip() in ("bhool jao", "baatein bhool jao", "chat bhool jao"):
             self.brain.bhool_jao()
-            return f"Done {s}, I have cleared our conversation memory."
+            return f"Done {s}, I have cleared our chat history. Everything I have learnt is still safe."
 
         # ---- basic ----
         day = day_answer(cmd, s)
