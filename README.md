@@ -74,6 +74,26 @@ Pehle **"Hey Jarvis"** bolo. Uske baad seedha bolo: *"open YouTube"*, *"kal kaun
 | `play arijit singh` | YouTube par gaana (online) |
 | `search iron man 4` | Internet se dhoondh kar jawab (online) |
 | `bhool jao` | Baatcheet ki memory mitayega |
+| `volume up/down`, `volume 40 karo`, `mute` | Volume |
+| `next song`, `pause`, `resume` | Music/video control |
+| `brightness 60`, `brightness badhao` | Screen brightness |
+| `take a screenshot` | `Pictures\JARVIS Screenshots` mein save |
+| `battery kitni hai`, `system status`, `my ip address` | System jaankari |
+| `remind me in 10 minutes to drink water`, `5 minute ka timer`, `alarm 6:30 am` | Reminder / timer / alarm |
+| `calculate 25 into 4`, `15 percent of 200`, `square root of 144` | Calculator |
+| `tell me a joke`, `motivation do`, `toss a coin`, `roll a dice` | Masti |
+| `news`, `cricket ki news`, `who is elon musk` | News / Wikipedia |
+| `add buy milk to my todo list`, `todo list batao`, `remove 1 from todo` | Todo list |
+| `remember that my birthday is 5 may`, `tumhe kya yaad hai` | Yaad rakhna |
+| `copy hello`, `clipboard mein kya hai`, `type hello sir` | Clipboard / typing |
+| `find file resume` | Desktop/Documents/Downloads mein file dhoondh kar kholna |
+| `send whatsapp message to mom I will be late` | WhatsApp (contacts `config.py` mein) |
+| `email to boss about leave` | Gmail compose |
+| `open flipkart`, `open github.com`, `youtube par X search karo` | Koi bhi website |
+| `close chrome`, `mera laptop band` (lock), `sleep mode`, `shutdown` (confirm ke saath) | PC control |
+| `empty recycle bin` (confirm ke saath), `minimize all` | Windows |
+| `where am i` | Location (internet se, lagbhag) |
+| `what can you do` / `help` | Saari skills ki list |
 | `bye` | Band |
 | Kuch bhi aur | Normal baatcheet; seekhi hui jaankari bhi use karta hai |
 

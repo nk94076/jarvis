@@ -8,20 +8,33 @@ import webbrowser
 from pathlib import Path
 
 from . import config, internet
+from . import skills_extra as extra
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
     "calculator": {"Windows": "calc", "Darwin": "open -a Calculator", "Linux": "gnome-calculator"},
     "chrome": {"Windows": "start chrome", "Darwin": "open -a 'Google Chrome'", "Linux": "google-chrome"},
     "vs code": {"Windows": "code", "Darwin": "code", "Linux": "code"},
+    "paint": {"Windows": "mspaint", "Darwin": "", "Linux": ""},
+    "edge": {"Windows": "start msedge", "Darwin": "", "Linux": ""},
+    "word": {"Windows": "start winword", "Darwin": "", "Linux": ""},
+    "excel": {"Windows": "start excel", "Darwin": "", "Linux": ""},
+    "settings": {"Windows": "start ms-settings:", "Darwin": "", "Linux": ""},
+    "command prompt": {"Windows": "start cmd", "Darwin": "", "Linux": ""},
 }
+PROCESSES = {"notepad": "notepad.exe", "calculator": "CalculatorApp.exe", "chrome": "chrome.exe",
+             "vs code": "Code.exe", "paint": "mspaint.exe", "edge": "msedge.exe", "word": "WINWORD.EXE",
+             "excel": "EXCEL.EXE", "spotify": "Spotify.exe", "whatsapp": "WhatsApp.exe",
+             "command prompt": "cmd.exe"}
+CLOSE_WORDS = ["close", "band kar", "band karo", "band kardo", "bandh", "quit", "kill"]
 WEBSITES = {"youtube": "https://youtube.com", "google": "https://google.com",
             "gmail": "https://mail.google.com", "whatsapp": "https://web.whatsapp.com",
             "instagram": "https://instagram.com"}
 
 
 TASK_WORDS = ["open", "kholo", "khol", "play", "chalao", "learn", "seekho", "sikho",
-              "search", "google", "bhool jao", "forget everything", "likho", "likh do", "write", "type"]
+              "search", "google", "bhool jao", "forget everything", "likho", "likh do", "write", "type",
+              "close", "band kar", "bandh", "lock", "screenshot", "whatsapp", "email", "find file"]
 FOLDER_QUESTIONS = ["kaun sa folder", "kon sa folder", "which folder", "konsa folder", "kaunsa folder",
                     "folders open", "folder khula", "open folders"]
 HOME = Path.home()
@@ -104,6 +117,7 @@ class Skills:
         self.brain = brain
         self.knowledge = knowledge
         self.pending = None     # jaise "notepad": agla vaakya notepad mein likhna hai
+        self.timers = extra.Timers()
 
     def write_notepad(self, text):
         NOTES_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,6 +147,61 @@ class Skills:
                 return self.write_notepad(note)
             self.pending = "notepad"
             return f"Sure {s}, what should I write in Notepad?"
+
+        # ---- confirm wale kaam ----
+        if self.pending in ("shutdown", "restart"):
+            action, self.pending = self.pending, None
+            if any(w in cmd.split() for w in ["yes", "haan", "ha", "han", "confirm", "kar", "karo"]):
+                if platform.system() == "Windows":
+                    subprocess.Popen(f"shutdown /{'s' if action == 'shutdown' else 'r'} /t 15", shell=True)
+                return f"Okay {s}, the laptop will {action} in 15 seconds. Save your work."
+            return f"Okay {s}, cancelled."
+
+        if self.pending == "recycle":
+            self.pending = None
+            if any(w in cmd.split() for w in ["yes", "haan", "ha", "han", "confirm"]):
+                extra._ps("Clear-RecycleBin -Force -ErrorAction SilentlyContinue")
+                return f"Recycle bin is empty now, {s}."
+            return f"Okay {s}, cancelled."
+
+        # ---- app band karna ----
+        if any(w in cmd for w in CLOSE_WORDS):
+            for name, proc in PROCESSES.items():
+                if name in cmd:
+                    if platform.system() != "Windows":
+                        return f"{s}, closing apps works on Windows only."
+                    res = subprocess.run(["taskkill", "/IM", proc], capture_output=True, creationflags=0x08000000)
+                    if res.returncode != 0:
+                        return f"{s}, {name} was not open."
+                    return f"Closing {name}, {s}."
+
+        # ---- laptop: lock / shutdown / restart ----
+        if "shutdown" in cmd or "shut down" in cmd or "restart" in cmd:
+            self.pending = "restart" if "restart" in cmd else "shutdown"
+            return f"{s}, are you sure you want to {self.pending} the laptop? Say yes or no."
+        if "lock" in cmd or ("laptop" in cmd and ("band" in cmd or "off" in cmd)):
+            if platform.system() == "Windows":
+                import ctypes
+                ctypes.windll.user32.LockWorkStation()
+            return f"Locking the laptop, {s}."
+
+        # ---- location ----
+        if any(w in cmd for w in ["location", "kahan hoon", "kaha hoon", "where am i", "kahan hu", "kaha hu"]):
+            if not internet.internet_hai():
+                return f"{s}, I need internet to find your location."
+            import requests
+            d = requests.get("https://ipinfo.io/json", timeout=8).json()
+            return (f"{s}, as per your internet connection you are near {d.get('city', 'unknown city')}, "
+                    f"{d.get('region', '')}, {d.get('country', '')}. This is approximate, not GPS.")
+
+        # ---- extra skills (volume, timer, calculator, news...) ----
+        jawab = self.timers.handle(cmd, s) or extra.recycle_bin(cmd, s, self)
+        if jawab:
+            return jawab
+        for skill in extra.SIMPLE:
+            jawab = skill(cmd, s)
+            if jawab:
+                return jawab
 
         # ---- file explorer aur folders ----
         if any(q in cmd for q in FOLDER_QUESTIONS):
@@ -181,6 +250,9 @@ class Skills:
                 if name in cmd:
                     subprocess.Popen(cmds[platform.system()], shell=True)
                     return f"{name} is open, {s}."
+            jawab = extra.open_any_site(cmd, s)
+            if jawab:
+                return jawab
 
         # ---- online kaam ----
         online_words = ["weather", "mausam", "play", "chalao", "search", "news", "khabar", "google"]
@@ -206,4 +278,5 @@ class Skills:
             return f"{s}, for safety I don't shut down the system myself. Please do it manually."
 
         # ---- baaki sab: baatcheet, seekhi hui jaankari ke saath ----
-        return self.brain.socho(cmd, extra_context=self.knowledge.context(cmd))
+        context = "\n\n".join(c for c in [extra.facts_text(), self.knowledge.context(cmd)] if c)
+        return self.brain.socho(cmd, extra_context=context)

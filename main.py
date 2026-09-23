@@ -23,6 +23,10 @@ class NoHUD:
         pass
 
 
+KNOWN_SINGLE = {"time", "date", "weather", "mausam", "location", "hello", "hi", "thanks", "thank",
+                "shukriya", "bye", "yes", "no", "haan", "nahi", "lock", "shutdown", "restart"}
+
+
 def wake_word_ke_baad(text):
     """Wake word mila to uske baad ka command lautata hai ("" agar sirf naam bola). Nahi mila to None."""
     for w in config.WAKE_WORDS:
@@ -36,9 +40,11 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     voice = Voice(text_mode=text_mode, typed=typed, stop=interrupt,
                   on_say=lambda t: (hud.post("state", "speak"), hud.post("say", t)),
                   on_said=lambda: hud.post("said"))
+    voice.on_level = lambda level: hud.post("level", level)
     brain = Brain()
     knowledge = Knowledge(brain)
     skills = Skills(brain, knowledge)
+    skills.timers.notify = lambda msg: (hud.post("log", "⏰ " + msg), voice.bolo(msg))
     s = config.USER_NAME
 
     online = internet.internet_hai()
@@ -97,6 +103,10 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
         if is_stop(cmd):
             interrupt.clear()
             continue                            # kuch chal hi nahi raha, bas chup raho
+
+        if len(cmd.split()) == 1 and cmd not in KNOWN_SINGLE and not is_task(cmd) and not skills.pending:
+            voice.bolo(f"Sorry {s}, I did not catch that. Please say it again.")
+            continue                            # "jar", "internet" jaisa adhoora sunaai diya
 
         hud.post("log", cmd)
         interrupt.clear()

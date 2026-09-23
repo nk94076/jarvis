@@ -72,6 +72,7 @@ class HUD:
         self.state = "sleep"
         self.caption = "Initialising systems..."
         self.speaking = False
+        self.mic_level = 0.0
         self.log = []
         self.weather = ("--", "Fetching weather")
         self.info = {"mode": "--", "brain": "--", "voice": "--", "learnt": "0"}
@@ -365,12 +366,13 @@ class HUD:
 
         # ---- voice waveform ----
         self.panel(1200, 655, 1580, 880, "AUDIO INTERFACE")
-        amp = 1.0 if self.speaking else (0.35 if self.state == "listen" else 0.08)
+        mic = min(1.0, self.mic_level / 900)
+        amp = 1.0 if self.speaking else max(0.06, mic)
         for i in range(34):
             h = 4 + 70 * amp * abs(math.sin(t * 6 + i * 0.55) * math.sin(t * 2.3 + i * 0.2))
             x = 1222 + i * 10.5
             self.rect(x, 775 - h, x + 6, 775 + h, fill=mix(MID, CYAN, h / 70), outline="")
-        self.text(1390, 860, "VOICE: EN-IN", 9, MID)
+        self.text(1390, 860, "SPEAKING" if self.speaking else f"MIC LEVEL {self.mic_level:4.0f}", 9, MID)
 
     def _entry(self):
         x1, y1 = self.P(560, 853)
@@ -419,6 +421,8 @@ class HUD:
                 self.log.append(f"{datetime.datetime.now():%H:%M}  {value}")
             elif kind == "weather":
                 self.weather = value
+            elif kind == "level":
+                self.mic_level = 0.7 * self.mic_level + 0.3 * value
             elif kind == "info":
                 self.info.update(value)
             elif kind == "quit":

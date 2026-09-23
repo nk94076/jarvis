@@ -87,7 +87,8 @@ class Voice:
         self.stop = stop or threading.Event()   # set ho to bolna/kaam turant band
         self.typed = typed          # HUD ke type box se aane wale commands
         self.mic_ok = True
-        self._threshold = None
+        self._noise = None
+        self.on_level = lambda level: None
         self.on_say = on_say or (lambda text: None)
         self.on_said = on_said or (lambda: None)
         self.engine = None
@@ -183,8 +184,9 @@ class Voice:
             if deadline and time.time() > deadline:
                 return ""
 
-    def _record(self, timeout=4, phrase_limit=10):
+    def _record(self, timeout=4, phrase_limit=12, learn=True):
         """Mic se ek vaakya record karta hai (pyaudio ke bina, sounddevice se).
+        Kamre ka shor lagatar naapta rehta hai, isliye normal awaaz mein bolna kaafi hai.
         Chup rahe to None, warna 16kHz 16-bit mono raw bytes."""
         import numpy as np
         import sounddevice as sd
@@ -192,25 +194,35 @@ class Voice:
         with sd.InputStream(samplerate=rate, channels=1, dtype="int16", blocksize=block) as stream:
             def chunk():
                 data, _ = stream.read(block)
-                return data.tobytes(), float(np.sqrt(np.mean(data.astype(np.float32) ** 2)))
-            if self._threshold is None:                # pehli baar: kamre ka shor naapo
-                levels = [chunk()[1] for _ in range(8)]
-                self._threshold = max(sum(levels) / len(levels) * 2.5, 250.0)
-            frames, started, silent = [], False, 0
-            waited = 0.0
+                level = float(np.sqrt(np.mean(data.astype(np.float32) ** 2)))
+                self.on_level(level)
+                return data.tobytes(), level
+
+            if self._noise is None:                    # pehli baar: 0.5s kamre ka shor
+                self._noise = max(float(np.median([chunk()[1] for _ in range(5)])), 30.0)
+                print(f"[mic] Shor ka level {self._noise:.0f}. Normal awaaz mein bolo.")
+
+            def start_level():
+                return min(max(self._noise * config.MIC_SENSITIVITY, self._noise + 100, 120), 2500)
+
+            frames, started, silent, waited = [], False, 0, 0.0
             while True:
                 data, level = chunk()
                 if not started:
                     waited += 0.1
-                    frames = (frames + [data])[-3:]    # bolne se thoda pehle ka bhi rakho
-                    if level > self._threshold:
+                    frames = (frames + [data])[-5:]    # bolne se 0.5s pehle ka bhi rakho
+                    if level > start_level():
                         started = True
-                    elif waited > timeout:
+                        continue
+                    if learn:                          # chuppi mein shor ka level update karo
+                        self._noise = 0.95 * self._noise + 0.05 * max(level, 30.0)
+                    if waited > timeout:
                         return None
                     continue
                 frames.append(data)
-                silent = silent + 1 if level < self._threshold else 0
-                if silent >= 6 or len(frames) > phrase_limit * 10:
+                end_level = max(self._noise * 1.3, self._noise + 50)
+                silent = silent + 1 if level < end_level else 0
+                if silent >= config.MIC_PAUSE * 10 or len(frames) > phrase_limit * 10:
                     return b"".join(frames)
 
     def _listen(self, online):
@@ -244,7 +256,7 @@ class Voice:
             return
         while not done.is_set() and not self.stop.is_set():
             try:
-                raw = self._record(timeout=1, phrase_limit=3)
+                raw = self._record(timeout=1, phrase_limit=3, learn=False)
             except Exception:
                 return
             if not raw or done.is_set():
@@ -265,5 +277,8 @@ class Voice:
 
 
 def is_stop(text):
-    words = set(re.findall(r"[a-z]+", text.lower()))
-    return bool(words & set(config.STOP_WORDS)) or any(p in text.lower() for p in config.STOP_PHRASES)
+    """Sirf chhota "stop/ruko/bas" jaisa vaakya (lambe vaakya jaise "notepad band karo" stop nahi hain)."""
+    words = re.findall(r"[a-z]+", text.lower())
+    if not words or len(words) > 3:
+        return False
+    return bool(set(words) & set(config.STOP_WORDS)) or " ".join(words) in config.STOP_PHRASES

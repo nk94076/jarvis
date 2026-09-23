@@ -9,3 +9,4 @@ ddgs
 wikipedia
 psutil
 edge-tts
+pillow
