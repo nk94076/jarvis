@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "3.2"
+VERSION = "3.3"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -13,8 +13,13 @@ MAX_HISTORY = 40                     # kitni purani baatein yaad rakhe
 WAKE_WORDS = ["jarvis", "jarvish", "jervis", "javis", "jarvees"]
 TTS_VOICE = "en-IN-PrabhatNeural"    # online awaaz; ladki ki awaaz: "en-IN-NeerjaNeural"
 SLEEP_AFTER = 90                     # itne second chup rahoge to JARVIS standby mein chala jayega
+STOP_WORDS = ["stop", "ruko", "rukiye", "ruk", "bas", "cancel", "chup", "rokiye", "roko"]
+STOP_PHRASES = ["ruk jao", "bas karo", "band karo"]
 SLEEP_WORDS = ["so jao", "sleep", "go to sleep", "standby", "chup ho jao"]
 
 SYSTEM_PROMPT = f"""Tum JARVIS ho, {USER_NAME} ke personal AI assistant, bilkul Iron Man ke JARVIS jaise.
 User ko '{USER_NAME}' bolo. User Hinglish mein bolega (jaise "kal kaun sa din hai"), use samjho. Reply in short (1-3 sentences), natural Indian English, like a polite Indian assistant.
-Markdown, emoji ya list mat use karo, kyunki jawab bol kar sunaya jayega."""
+Markdown, emoji ya list mat use karo, kyunki jawab bol kar sunaya jayega.
+Tum ye kaam kar sakte ho (user ko ye karne ke liye kahe to mana mat karo, bas bolo ki command aise do):
+apps/websites kholna, File Explorer aur folders (Downloads, Documents, Desktop) kholna, khule folders batana,
+Notepad mein likhna ("write ... in notepad"), gaana chalana, internet search, weather, kuch naya seekhna."""

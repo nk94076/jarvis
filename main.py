@@ -15,7 +15,7 @@ from jarvis import config, internet
 from jarvis.brain import Brain
 from jarvis.knowledge import Knowledge
 from jarvis.skills import Skills, is_task
-from jarvis.voice import Voice
+from jarvis.voice import Voice, is_stop
 
 
 class NoHUD:
@@ -31,8 +31,9 @@ def wake_word_ke_baad(text):
     return None
 
 
-def jarvis_loop(hud, text_mode, stop, typed=None):
-    voice = Voice(text_mode=text_mode, typed=typed,
+def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
+    interrupt = interrupt or threading.Event()   # "stop" bolne/likhne par set hota hai
+    voice = Voice(text_mode=text_mode, typed=typed, stop=interrupt,
                   on_say=lambda t: (hud.post("state", "speak"), hud.post("say", t)),
                   on_said=lambda: hud.post("said"))
     brain = Brain()
@@ -93,24 +94,48 @@ def jarvis_loop(hud, text_mode, stop, typed=None):
         if any(w in cmd for w in config.SLEEP_WORDS):
             so_jao(f"Okay {s}, going to standby. Say Hey Jarvis to wake me up.")
             continue
+        if is_stop(cmd):
+            interrupt.clear()
+            continue                            # kuch chal hi nahi raha, bas chup raho
 
         hud.post("log", cmd)
+        interrupt.clear()
+        done = threading.Event()
+        threading.Thread(target=voice.listen_for_stop, args=(done,), daemon=True).start()
+
         task = is_task(cmd)
         if task:
             voice.bolo(f"Starting the task, {s}.")
         hud.post("state", "work")
-        try:
-            jawab = skills.handle(cmd)
-        except Exception as e:
-            jawab = f"Sorry {s}, something went wrong: {e}"
 
-        if jawab is None:
-            voice.bolo(f"Goodbye {s}. Take care.")
-            hud.post("quit")
-            return
-        voice.bolo(jawab)
-        if task:
-            voice.bolo(f"Task completed, {s}.")
+        result = {}
+
+        def kaam():
+            try:
+                result["jawab"] = skills.handle(cmd)
+            except Exception as e:
+                result["jawab"] = f"Sorry {s}, something went wrong: {e}"
+
+        worker = threading.Thread(target=kaam, daemon=True)
+        worker.start()
+        while worker.is_alive() and not interrupt.is_set():
+            worker.join(0.1)
+
+        if not interrupt.is_set():
+            jawab = result.get("jawab", "")
+            if jawab is None:
+                done.set()
+                voice.bolo(f"Goodbye {s}. Take care.")
+                hud.post("quit")
+                return
+            voice.bolo(jawab)
+            if task:
+                voice.bolo(f"Task completed, {s}.")
+        done.set()
+        if interrupt.is_set():
+            interrupt.clear()
+            hud.post("said")
+            voice.bolo(f"Okay {s}, stopped.")
         hud.post("info", {"learnt": str(len(knowledge.items)),
                           "mode": "ONLINE" if internet.internet_hai() else "OFFLINE"})
         hud.post("state", "listen")
@@ -126,15 +151,19 @@ def main():
         return
     from jarvis.hud import HUD
     typed = queue.Queue()
+    interrupt = threading.Event()
 
     def on_command(text):
+        if is_stop(text):
+            interrupt.set()                 # type box mein "stop" = turant ruko
+            return
         # type kiye command ke liye "Jarvis" bolna zaroori nahi
         if wake_word_ke_baad(text.lower()) is None:
             text = "jarvis " + text
         typed.put(text)
 
-    hud = HUD(on_close=stop.set, on_command=on_command)
-    threading.Thread(target=jarvis_loop, args=(hud, text_mode, stop, typed), daemon=True).start()
+    hud = HUD(on_close=stop.set, on_command=on_command, on_stop=interrupt.set)
+    threading.Thread(target=jarvis_loop, args=(hud, text_mode, stop, typed, interrupt), daemon=True).start()
     hud.run()
 
 

@@ -3,6 +3,8 @@ import asyncio
 import json
 import os
 import queue
+import re
+import threading
 import sys
 import tempfile
 import time
@@ -11,8 +13,8 @@ from . import config
 from .internet import internet_hai
 
 
-def play_mp3(path):
-    """MP3 bajao. Windows par built-in player (koi extra library nahi)."""
+def play_mp3(path, stop=None):
+    """MP3 bajao. Windows par built-in player (koi extra library nahi). stop set ho to beech mein ruk jao."""
     if sys.platform == "win32":
         import ctypes
         mci = ctypes.windll.winmm.mciSendStringW
@@ -21,7 +23,16 @@ def play_mp3(path):
         if err != 0:
             print(f"[voice] MP3 player error {err}, dusri awaaz try kar raha hoon.")
             return False
-        mci("play jarvis wait", None, 0, None)
+        mci("play jarvis", None, 0, None)
+        buf = ctypes.create_unicode_buffer(32)
+        while True:
+            time.sleep(0.05)
+            mci("status jarvis mode", buf, 32, None)
+            if buf.value != "playing":
+                break
+            if stop is not None and stop.is_set():
+                mci("stop jarvis", None, 0, None)
+                break
         mci("close jarvis", None, 0, None)
         return True
     try:
@@ -31,6 +42,9 @@ def play_mp3(path):
         pygame.mixer.music.load(path)
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
+            if stop is not None and stop.is_set():
+                pygame.mixer.music.stop()
+                break
             pygame.time.wait(50)
         pygame.mixer.music.unload()
         return True
@@ -38,7 +52,7 @@ def play_mp3(path):
         return False
 
 
-def windows_speak(text):
+def windows_speak(text, stop=None):
     """Aakhri backup: Windows ki apni awaaz (PowerShell), koi library nahi chahiye."""
     if sys.platform != "win32":
         return
@@ -48,7 +62,12 @@ def windows_speak(text):
               "$v = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -eq 'en-IN' } | Select-Object -First 1; "
               "if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }; "
               f"$s.Speak('{safe}')")
-    subprocess.run(["powershell", "-NoProfile", "-Command", script], creationflags=0x08000000)
+    proc = subprocess.Popen(["powershell", "-NoProfile", "-Command", script], creationflags=0x08000000)
+    while proc.poll() is None:
+        if stop is not None and stop.is_set():
+            proc.kill()
+            break
+        time.sleep(0.05)
 
 
 def find_vosk_model():
@@ -63,8 +82,9 @@ def find_vosk_model():
 
 
 class Voice:
-    def __init__(self, text_mode=False, on_say=None, on_said=None, typed=None):
+    def __init__(self, text_mode=False, on_say=None, on_said=None, typed=None, stop=None):
         self.text_mode = text_mode
+        self.stop = stop or threading.Event()   # set ho to bolna/kaam turant band
         self.typed = typed          # HUD ke type box se aane wale commands
         self.mic_ok = True
         self._threshold = None
@@ -94,6 +114,8 @@ class Voice:
             print(f"[voice] Offline sunna band ({e}). Internet par Google speech chalegi.")
 
     def bolo(self, text):
+        if self.stop.is_set():
+            return
         print(f"JARVIS: {text}")
         self.on_say(text)
         try:
@@ -103,12 +125,16 @@ class Voice:
                 return
             if self.engine:
                 try:
-                    self.engine.say(text)
-                    self.engine.runAndWait()
+                    # vaakya-vaakya bolo taaki "stop" par beech mein ruk sake
+                    for part in re.split(r"(?<=[.!?])\s+", text):
+                        if self.stop.is_set():
+                            break
+                        self.engine.say(part)
+                        self.engine.runAndWait()
                     return
                 except Exception as e:
                     print(f"[voice] pyttsx3 error: {e}")
-            windows_speak(text)
+            windows_speak(text, self.stop)
         finally:
             self.on_said()
 
@@ -119,7 +145,7 @@ class Voice:
             self._n = getattr(self, "_n", 0) + 1
             path = os.path.join(tempfile.gettempdir(), f"jarvis_say_{self._n % 2}.mp3")
             asyncio.run(edge_tts.Communicate(text, config.TTS_VOICE).save(path))
-            return play_mp3(path)
+            return play_mp3(path, self.stop)
         except Exception as e:
             if not getattr(self, "_edge_warned", False):
                 print(f"[voice] Online awaaz nahi chali ({e}). Offline awaaz use hogi.")
@@ -211,3 +237,33 @@ class Voice:
             print(f"Aap: {text}")
             return text.lower()
         return None
+
+    def listen_for_stop(self, done):
+        """Kaam ya bolne ke dauraan chupke se suno; "stop/ruko/bas" suna to self.stop set karo."""
+        if self.text_mode or not self.mic_ok:
+            return
+        while not done.is_set() and not self.stop.is_set():
+            try:
+                raw = self._record(timeout=1, phrase_limit=3)
+            except Exception:
+                return
+            if not raw or done.is_set():
+                continue
+            text = ""
+            try:
+                if internet_hai():
+                    import speech_recognition as sr
+                    text = sr.Recognizer().recognize_google(sr.AudioData(raw, 16000, 2), language="en-IN")
+                elif self.vosk:
+                    self.vosk.AcceptWaveform(raw)
+                    text = json.loads(self.vosk.FinalResult()).get("text", "")
+            except Exception:
+                text = ""
+            if is_stop(text):
+                print(f"Aap: {text}  [STOP]")
+                self.stop.set()
+
+
+def is_stop(text):
+    words = set(re.findall(r"[a-z]+", text.lower()))
+    return bool(words & set(config.STOP_WORDS)) or any(p in text.lower() for p in config.STOP_PHRASES)

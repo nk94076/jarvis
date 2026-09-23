@@ -41,9 +41,10 @@ def mix(c1, c2, t):
 
 
 class HUD:
-    def __init__(self, on_close=None, on_command=None):
+    def __init__(self, on_close=None, on_command=None, on_stop=None):
         self.on_close = on_close
         self.on_command = on_command
+        self.on_stop = on_stop
         self.root = tk.Tk()
         self.root.title("J.A.R.V.I.S.")
         self.root.geometry("1280x720")
@@ -55,6 +56,7 @@ class HUD:
             pass
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.bind("<Escape>", lambda e: self.close())
+        self.root.bind("<Control-space>", lambda e: self.on_stop and self.on_stop())
         self.root.bind("<F11>", lambda e: self.root.attributes(
             "-fullscreen", not self.root.attributes("-fullscreen")))
         self.cv = tk.Canvas(self.root, bg=BG, highlightthickness=0)
@@ -377,7 +379,7 @@ class HUD:
         if self._entry_font != self.fs(12):
             self._entry_font = self.fs(12)
             self.entry.configure(font=(FONT, self._entry_font))
-        self.text(800, 896, "Type a command and press Enter  ·  F11 full screen  ·  Esc exit", 8, DIM)
+        self.text(800, 896, "Type a command + Enter  ·  Say/type STOP or Ctrl+Space to interrupt  ·  F11 full screen  ·  Esc exit", 8, DIM)
 
     def _stats(self):
         if not psutil or time.time() - self._stats_at < 1:

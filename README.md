@@ -64,6 +64,10 @@ Pehle **"Hey Jarvis"** bolo. Uske baad seedha bolo: *"open YouTube"*, *"kal kaun
 | `what have you learnt` / `kya seekha` | Seekhe hue topics batayega |
 | `notes artificial intelligence` | Us topic ke notes sunayega |
 | `time kya hua hai`, `kal kaun sa din hai`, `aaj ki date` | Samay / din / tareekh |
+| `stop` / `ruko` / `bas` (bolte ya kaam karte waqt bhi), ya `Ctrl+Space` | Turant ruk jata hai |
+| `my name is Naveen write on notepad`, `notepad mein likho ...` | Notepad mein likh kar `Documents\JARVIS Notes` mein save |
+| `open file explorer`, `open downloads/documents/desktop` | File Explorer / folder kholega |
+| `kaun sa folder open hai` | Khule hue folders ke naam batayega |
 | `so jao` / `sleep` | Standby (phir "Hey Jarvis" se jagao) |
 | `open youtube`, `notepad kholo` | Website / app kholega |
 | `weather in delhi` | Live mausam (online) |
