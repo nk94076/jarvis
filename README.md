@@ -14,7 +14,16 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 - **Batata hai kya seekha:** "kya seekha" bolo.
 - **Memory:** band karke dobara kholo, pichli baatein yaad rehti hain.
 
-## Setup (ek baar)
+## Windows par aasaan setup
+
+1. **Python 3.12** install karo (python.org), aur **"Add python.exe to PATH"** tick karo.
+2. **Ollama** install karo (ollama.com/download).
+3. Is folder mein **`setup.bat`** par double-click karo.
+4. Uske baad jab bhi chalana ho, **`JARVIS.bat`** par double-click karo.
+
+Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likho, aur `JARVIS.bat` ka shortcut us folder mein daal do.
+
+## Setup (manual, ek baar)
 
 1. **Python 3.10+** install karo (python.org, "Add to PATH" tick karna).
 2. **Ollama** install karo (ollama.com), phir:
