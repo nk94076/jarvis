@@ -36,6 +36,17 @@ def play_mp3(path):
         return False
 
 
+def find_vosk_model():
+    """'model' folder, ya uske andar ka folder (unzip karne par aksar ek level andar chala jaata hai)."""
+    base = config.VOSK_MODEL_DIR
+    if not os.path.isdir(base):
+        raise FileNotFoundError(f"'{base}' folder nahi mila (optional hai)")
+    for root, dirs, files in os.walk(base):
+        if "am" in dirs or "conf" in dirs:
+            return root
+    raise FileNotFoundError(f"'{base}' folder mein Vosk model nahi mila")
+
+
 class Voice:
     def __init__(self, text_mode=False, on_say=None, on_said=None, typed=None):
         self.text_mode = text_mode
@@ -61,8 +72,9 @@ class Voice:
         except Exception as e:
             print(f"[voice] Awaaz band: {e}. Fix: setup.bat dobara chalao (pyttsx3 install hoga).")
         try:
-            from vosk import KaldiRecognizer, Model
-            self.vosk = KaldiRecognizer(Model(config.VOSK_MODEL_DIR), 16000)
+            from vosk import KaldiRecognizer, Model, SetLogLevel
+            SetLogLevel(-1)
+            self.vosk = KaldiRecognizer(Model(find_vosk_model()), 16000)
         except Exception as e:
             print(f"[voice] Offline sunna band ({e}). Internet par Google speech chalegi.")
 

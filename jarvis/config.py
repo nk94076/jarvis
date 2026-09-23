@@ -1,6 +1,8 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
+VERSION = "3.1"
+
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
 VOSK_MODEL_DIR = "model"             # offline speech model ka folder

@@ -88,6 +88,7 @@ def jarvis_loop(hud, text_mode, stop, typed=None):
 
 
 def main():
+    print(f"J.A.R.V.I.S. v{config.VERSION}")
     text_mode = "--text" in sys.argv
     stop = threading.Event()
     if "--cli" in sys.argv or text_mode and "--gui" not in sys.argv:
