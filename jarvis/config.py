@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "4.0"
+VERSION = "5.0"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -17,6 +17,15 @@ MIC_SENSITIVITY = 2.0                # kam = zyada sensitive (1.5 bahut sensitiv
 MIC_PAUSE = 0.9                      # itne second ruko to JARVIS samjhega aapki baat khatam
 STOP_WORDS = ["stop", "ruko", "rukiye", "ruk", "bas", "cancel", "chup", "rokiye", "roko"]
 STOP_PHRASES = ["ruk jao", "bas karo", "band karo"]
+# ---- Main Brain / Agents ----
+AGENT_MODEL = OLLAMA_MODEL           # multi-step kaam ke liye; bada model behtar: "qwen2.5:7b" ya "llama3.1:8b"
+AGENT_MAX_STEPS = 8                  # ek kaam mein zyada se zyada kitne tool steps
+# Aapke coding projects: naam -> folder. "check my jarvis project" bolo
+PROJECTS = {
+    "jarvis": str(Path(__file__).resolve().parent.parent),
+    # "website": r"C:\Users\Naveen\Projects\website",
+}
+
 # WhatsApp aur email ke liye apne contacts yahan likho (naam chhote aksharon mein)
 CONTACTS = {
     # "mom": "+919876543210",

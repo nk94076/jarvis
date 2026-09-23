@@ -87,6 +87,7 @@ class Voice:
         self.stop = stop or threading.Event()   # set ho to bolna/kaam turant band
         self.typed = typed          # HUD ke type box se aane wale commands
         self.mic_ok = True
+        self.paused = False
         self._noise = None
         self.on_level = lambda level: None
         self.on_say = on_say or (lambda text: None)
@@ -255,6 +256,9 @@ class Voice:
         if self.text_mode or not self.mic_ok:
             return
         while not done.is_set() and not self.stop.is_set():
+            if self.paused:                     # confirmation ke waqt mic main loop ko chahiye
+                time.sleep(0.2)
+                continue
             try:
                 raw = self._record(timeout=1, phrase_limit=3, learn=False)
             except Exception:

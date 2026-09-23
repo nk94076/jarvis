@@ -45,6 +45,24 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     knowledge = Knowledge(brain)
     skills = Skills(brain, knowledge)
     skills.timers.notify = lambda msg: (hud.post("log", "⏰ " + msg), voice.bolo(msg))
+
+    def confirm(question):
+        """Khatarnaak kaam se pehle: bolo, jawab suno (yes/haan = ok)."""
+        voice.paused = True
+        try:
+            voice.bolo(question + " Say yes or no.")
+            for _ in range(3):
+                ans = voice.suno(max_wait=10)
+                if ans:
+                    hud.post("log", f"confirm: {ans}")
+                    return bool(set(ans.split()) & {"yes", "haan", "ha", "han", "ok", "okay", "confirm", "kar", "karo"})
+            return False
+        finally:
+            voice.paused = False
+
+    skills.agent.confirm = confirm
+    skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
+    skills.agent.stop = interrupt
     s = config.USER_NAME
 
     online = internet.internet_hai()

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import config, internet
 from . import skills_extra as extra
+from . import agent as agent_mod
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -34,7 +35,8 @@ WEBSITES = {"youtube": "https://youtube.com", "google": "https://google.com",
 
 TASK_WORDS = ["open", "kholo", "khol", "play", "chalao", "learn", "seekho", "sikho",
               "search", "google", "bhool jao", "forget everything", "likho", "likh do", "write", "type",
-              "close", "band kar", "bandh", "lock", "screenshot", "whatsapp", "email", "find file"]
+              "close", "band kar", "bandh", "lock", "screenshot", "whatsapp", "email", "find file",
+              "research", "project", "pdf", "organize", "organise", "run command"]
 FOLDER_QUESTIONS = ["kaun sa folder", "kon sa folder", "which folder", "konsa folder", "kaunsa folder",
                     "folders open", "folder khula", "open folders"]
 HOME = Path.home()
@@ -118,6 +120,8 @@ class Skills:
         self.knowledge = knowledge
         self.pending = None     # jaise "notepad": agla vaakya notepad mein likhna hai
         self.timers = extra.Timers()
+        self.agent = agent_mod.Agent(self)
+        agent_mod.AGENT = self.agent
 
     def write_notepad(self, text):
         NOTES_DIR.mkdir(parents=True, exist_ok=True)
@@ -193,6 +197,11 @@ class Skills:
             d = requests.get("https://ipinfo.io/json", timeout=8).json()
             return (f"{s}, as per your internet connection you are near {d.get('city', 'unknown city')}, "
                     f"{d.get('region', '')}, {d.get('country', '')}. This is approximate, not GPS.")
+
+        # ---- PC / screen / browser / research / pdf / git (seedhe) ----
+        jawab = self.agent.fast(cmd)
+        if jawab:
+            return jawab
 
         # ---- extra skills (volume, timer, calculator, news...) ----
         jawab = self.timers.handle(cmd, s) or extra.recycle_bin(cmd, s, self)
@@ -278,5 +287,7 @@ class Skills:
             return f"{s}, for safety I don't shut down the system myself. Please do it manually."
 
         # ---- baaki sab: baatcheet, seekhi hui jaankari ke saath ----
+        if agent_mod.needs_agent(cmd):
+            return self.agent.run(cmd)          # multi-step: Main Brain tools ke saath
         context = "\n\n".join(c for c in [extra.facts_text(), self.knowledge.context(cmd)] if c)
         return self.brain.socho(cmd, extra_context=context)

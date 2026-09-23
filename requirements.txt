@@ -10,3 +10,4 @@ wikipedia
 psutil
 edge-tts
 pillow
+pypdf

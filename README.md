@@ -97,6 +97,30 @@ Pehle **"Hey Jarvis"** bolo. Uske baad seedha bolo: *"open YouTube"*, *"kal kaun
 | `bye` | Band |
 | Kuch bhi aur | Normal baatcheet; seekhi hui jaankari bhi use karta hai |
 
+## 🧠 Main Brain aur Agents (v5)
+
+Lamba ya kai step wala kaam bolo, to Main Brain use steps mein todta hai aur tools chalata hai, jab tak kaam poora na ho.
+Jaise: *"downloads folder check karo aur files ko organize kar do"*.
+
+| Bolo | Agent | Kya hoga |
+|---|---|---|
+| `screen par kya likha hai` | 👁️ Vision | Windows OCR se screen padhega |
+| `submit par click karo`, `click on sign in` | 🖱️ PC | Screen par wo text dhoondh kar click |
+| `press ctrl+t`, `scroll down` | ⌨️ PC | Keyboard / mouse |
+| `new tab`, `close tab`, `go back`, `refresh`, `zoom in` | 🌐 Browser | Chrome/Edge control |
+| `research karo electric cars in india` | 🔎 Research | Kai websites padh kar report, `Documents\JARVIS Reports` mein |
+| `read pdf invoice`, `invoice pdf ki summary` | 📄 PDF | PDF dhoondh kar summary |
+| `organize my downloads folder` | 📂 File | Files ko Images/Documents/Videos... mein lagata hai (confirm) |
+| `check my jarvis project` | 💻 Coding | Git status, syntax check, code review, report |
+| `git status of jarvis`, `review code main.py` | 🐙 Git / Coding | |
+| `run command ipconfig` | 🖥️ Terminal | Confirm ke baad chalata hai; khatarnaak commands block |
+
+- **Permission system:** file likhna/move/delete, terminal, organize jaise kaam se pehle JARVIS poochta hai: *"Say yes or no"*.
+- **Activity log:** har tool call `data\activity.log` mein likha jata hai.
+- **Projects:** `config.py` mein `PROJECTS` mein apne projects ka naam aur folder jodo.
+- **Behtar dimaag:** 16GB RAM ho to `ollama pull qwen2.5:7b` karke `config.py` mein `AGENT_MODEL = "qwen2.5:7b"` karo. Multi-step kaam kaafi behtar honge.
+- **Naya tool (plugin):** `jarvis/agent.py` mein `@tool(...)` laga kar ek function likho, Main Brain use apne aap use karne lagega.
+
 ## Folder structure
 
 ```
@@ -106,7 +130,10 @@ jarvis/hud.py        Iron Man jaisa screen (arc reactor, character)
 jarvis/voice.py      sunna aur bolna (Indian English)
 jarvis/brain.py      Ollama dimaag + memory
 jarvis/knowledge.py  internet se seekhna, notes save karna
-jarvis/skills.py     saare commands (naya kaam yahan add karo)
+jarvis/skills.py     seedhe commands
+jarvis/skills_extra.py  volume, timer, calculator, news, todo...
+jarvis/agent.py      Main Brain, tools/plugins, agents, permission system
+jarvis/pc.py         mouse, keyboard, screen OCR, browser keys
 jarvis/internet.py   search, weather, wikipedia
 data/                memory.json aur knowledge.json (apne aap banta hai)
 ```
