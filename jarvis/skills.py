@@ -18,6 +18,32 @@ WEBSITES = {"youtube": "https://youtube.com", "google": "https://google.com",
             "instagram": "https://instagram.com"}
 
 
+TASK_WORDS = ["open", "kholo", "khol", "play", "chalao", "learn", "seekho", "sikho",
+              "search", "google", "bhool jao", "forget everything"]
+
+
+def is_task(cmd):
+    """Kya ye koi kaam hai (sirf baatcheet ya sawaal nahi)?"""
+    return any(w in cmd for w in TASK_WORDS)
+
+
+def day_answer(cmd, s):
+    """'aaj/kal/parso kaun sa din hai', 'what is the date tomorrow' jaise sawaal. Match na ho to None."""
+    words = set(cmd.replace("?", " ").split())
+    if not words & {"date", "tareekh", "tarikh", "din", "day", "dinank"}:
+        return None
+    offset, label = 0, "today"
+    if words & {"yesterday"} or "kal tha" in cmd or "kal kya tha" in cmd:
+        offset, label = -1, "yesterday"
+    elif words & {"parso", "parson"}:
+        offset, label = 2, "the day after tomorrow"
+    elif words & {"tomorrow", "kal", "cal", "call"}:
+        offset, label = 1, "tomorrow"
+    d = datetime.date.today() + datetime.timedelta(days=offset)
+    verb = "was" if offset < 0 else ("is" if offset == 0 else "will be")
+    return f"{s}, {label} {verb} {d:%A}, {d.day} {d:%B %Y}."
+
+
 def _after(cmd, *words):
     for w in words:
         if w in cmd:
@@ -49,10 +75,11 @@ class Skills:
             return f"Done {s}, I have cleared our conversation memory."
 
         # ---- basic ----
-        if "time" in cmd or "samay" in cmd:
+        day = day_answer(cmd, s)
+        if day:
+            return day
+        if "time" in cmd or "samay" in cmd or "baje" in cmd:
             return datetime.datetime.now().strftime(f"{s}, the time is %I:%M %p.")
-        if "date" in cmd or "tareekh" in cmd:
-            return datetime.date.today().strftime(f"{s}, today is %A, %d %B %Y.")
 
         # ---- apps aur websites ----
         if any(w in cmd for w in ["open", "kholo", "khol"]):

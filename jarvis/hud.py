@@ -28,7 +28,7 @@ GREEN = "#3dffa8"
 FONT = "Consolas"
 UI = "Segoe UI"
 
-STATE_TEXT = {"sleep": "STANDBY  //  SAY \"JARVIS\"", "listen": "LISTENING",
+STATE_TEXT = {"sleep": "STANDBY  //  SAY \"HEY JARVIS\"", "listen": "ACTIVE  //  LISTENING",
               "work": "PROCESSING", "speak": "SPEAKING"}
 
 

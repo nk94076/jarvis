@@ -5,7 +5,8 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 ![JARVIS HUD](docs/hud.png)
 
 - **Iron Man HUD:** beech mein arc reactor heartbeat ki tarah dhadakta hai, saath mein ghadi, CPU/RAM/Disk, weather aur activity log.
-- **Sirf naam se jaagta hai:** "Jarvis" bolo, to chhota robot "Yes Sir?" bolega, kaam karega, phir "Task done, Sir." bolega.
+- **"Hey Jarvis" se ek baar jagao:** uske baad naam liye bina seedha baat karo. 90 second chup rahoge ya "so jao" bologe to standby.
+- **Kaam par report:** open/play/learn/search jaise kaam par "Starting the task, Sir" aur "Task completed, Sir". Baatcheet par nahi.
 - **Indian English awaaz:** online ho to `en-IN-PrabhatNeural`, offline ho to computer ki Indian English awaaz.
 
 - **Paid API nahi:** dimaag (Ollama) aapke computer par chalta hai.
@@ -52,7 +53,7 @@ python main.py --text --gui # screen ke saath, sirf type karke
 
 HUD mein neeche ek **type box** bhi hai: command likho aur Enter dabao (usme "Jarvis" likhna zaroori nahi).
 
-Har command se pehle **"Jarvis"** bolo, jaise *"Jarvis, open YouTube"*. Sirf "Jarvis" bolo to wo "Yes Sir?" bol kar command ka intezaar karega.
+Pehle **"Hey Jarvis"** bolo. Uske baad seedha bolo: *"open YouTube"*, *"kal kaun sa din hai"*. Chup rahoge to 90 second baad standby (`config.py` mein `SLEEP_AFTER`).
 `F11` se full screen hota hai, `Esc` se band.
 
 ## Commands
@@ -62,7 +63,8 @@ Har command se pehle **"Jarvis"** bolo, jaise *"Jarvis, open YouTube"*. Sirf "Ja
 | `learn artificial intelligence` / `seekho ...` | Internet se padh kar notes banayega aur save karega |
 | `what have you learnt` / `kya seekha` | Seekhe hue topics batayega |
 | `notes artificial intelligence` | Us topic ke notes sunayega |
-| `time` / `date` | Samay / tareekh |
+| `time kya hua hai`, `kal kaun sa din hai`, `aaj ki date` | Samay / din / tareekh |
+| `so jao` / `sleep` | Standby (phir "Hey Jarvis" se jagao) |
 | `open youtube`, `notepad kholo` | Website / app kholega |
 | `weather in delhi` | Live mausam (online) |
 | `play arijit singh` | YouTube par gaana (online) |

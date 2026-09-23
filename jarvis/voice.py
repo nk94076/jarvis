@@ -17,7 +17,9 @@ def play_mp3(path):
         import ctypes
         mci = ctypes.windll.winmm.mciSendStringW
         mci("close jarvis", None, 0, None)
-        if mci(f'open "{path}" type mpegvideo alias jarvis', None, 0, None) != 0:
+        err = mci(f'open "{path}" type mpegvideo alias jarvis', None, 0, None)
+        if err != 0:
+            print(f"[voice] MP3 player error {err}, dusri awaaz try kar raha hoon.")
             return False
         mci("play jarvis wait", None, 0, None)
         mci("close jarvis", None, 0, None)
@@ -34,6 +36,19 @@ def play_mp3(path):
         return True
     except Exception:
         return False
+
+
+def windows_speak(text):
+    """Aakhri backup: Windows ki apni awaaz (PowerShell), koi library nahi chahiye."""
+    if sys.platform != "win32":
+        return
+    import subprocess
+    safe = text.replace("'", "''")
+    script = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+              "$v = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -eq 'en-IN' } | Select-Object -First 1; "
+              "if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }; "
+              f"$s.Speak('{safe}')")
+    subprocess.run(["powershell", "-NoProfile", "-Command", script], creationflags=0x08000000)
 
 
 def find_vosk_model():
@@ -87,8 +102,13 @@ class Voice:
             if internet_hai() and self._edge_tts(text):
                 return
             if self.engine:
-                self.engine.say(text)
-                self.engine.runAndWait()
+                try:
+                    self.engine.say(text)
+                    self.engine.runAndWait()
+                    return
+                except Exception as e:
+                    print(f"[voice] pyttsx3 error: {e}")
+            windows_speak(text)
         finally:
             self.on_said()
 
@@ -100,11 +120,16 @@ class Voice:
             path = os.path.join(tempfile.gettempdir(), f"jarvis_say_{self._n % 2}.mp3")
             asyncio.run(edge_tts.Communicate(text, config.TTS_VOICE).save(path))
             return play_mp3(path)
-        except Exception:
+        except Exception as e:
+            if not getattr(self, "_edge_warned", False):
+                print(f"[voice] Online awaaz nahi chali ({e}). Offline awaaz use hogi.")
+                self._edge_warned = True
             return False
 
-    def suno(self):
-        """Ek command lautata hai: mic se, ya HUD ke type box se (jo pehle aaye)."""
+    def suno(self, max_wait=None):
+        """Ek command lautata hai: mic se, ya HUD ke type box se (jo pehle aaye).
+        max_wait second tak kuch na mile to "" lautata hai."""
+        deadline = time.time() + max_wait if max_wait else None
         if self.text_mode and self.typed is None:
             try:
                 return input("Aap: ").strip().lower()
@@ -129,6 +154,8 @@ class Voice:
                 return input("Aap (type karo): ").strip().lower()
             if text:
                 return text
+            if deadline and time.time() > deadline:
+                return ""
 
     def _record(self, timeout=4, phrase_limit=10):
         """Mic se ek vaakya record karta hai (pyaudio ke bina, sounddevice se).
@@ -157,7 +184,7 @@ class Voice:
                     continue
                 frames.append(data)
                 silent = silent + 1 if level < self._threshold else 0
-                if silent >= 8 or len(frames) > phrase_limit * 10:
+                if silent >= 6 or len(frames) > phrase_limit * 10:
                     return b"".join(frames)
 
     def _listen(self, online):

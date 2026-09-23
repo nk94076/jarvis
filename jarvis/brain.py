@@ -20,7 +20,9 @@ class Brain:
 
     def socho(self, sawaal, extra_context=""):
         """Baatcheet: history ke saath jawab deta hai aur memory save karta hai."""
-        system = config.SYSTEM_PROMPT
+        from datetime import datetime
+        system = config.SYSTEM_PROMPT + datetime.now().strftime(
+            "\nAaj %A, %d %B %Y hai aur abhi %I:%M %p baje hain. Kal (tomorrow) ka din isi se nikalo.")
         if extra_context:
             system += "\n\nYe jaankari tumne pehle seekhi hai, zaroorat ho to use karo:\n" + extra_context
         self.history.append({"role": "user", "content": sawaal})

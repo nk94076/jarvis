@@ -3,17 +3,18 @@
     python main.py --cli     bina screen ke, sirf awaaz
     python main.py --text    keyboard se type karke (mic ke bina test karne ke liye)
 
-Kaise kaam karta hai: JARVIS chupchaap sunta rehta hai. "Jarvis" bolo to wo
-"Yes sir" bolega, aapka kaam karega, aur phir "Task done, sir" bolega.
-Ek saath bhi bol sakte ho: "Jarvis, open YouTube"."""
+Kaise kaam karta hai: JARVIS standby mein sunta rehta hai. "Hey Jarvis" bolo to wo jaag jata hai,
+phir naam liye bina seedha baat karo. Kaam (open/play/learn/search) par "Starting the task" aur
+"Task completed" bolta hai. SLEEP_AFTER second chup rahoge ya "so jao" bologe to standby."""
 import queue
 import sys
 import threading
+import time
 
 from jarvis import config, internet
 from jarvis.brain import Brain
 from jarvis.knowledge import Knowledge
-from jarvis.skills import Skills
+from jarvis.skills import Skills, is_task
 from jarvis.voice import Voice
 
 
@@ -48,28 +49,55 @@ def jarvis_loop(hud, text_mode, stop, typed=None):
             hud.post("weather", internet.mausam_hud())
         except Exception:
             pass
-    voice.bolo(f"Hello {s}, JARVIS is online and ready. Just call my name."
-               if online else f"Hello {s}, JARVIS is ready in offline mode. Just call my name.")
+    voice.bolo(f"Hello {s}, JARVIS is online. Say Hey Jarvis to wake me up."
+               if online else f"Hello {s}, JARVIS is ready in offline mode. Say Hey Jarvis to wake me up.")
     hud.post("state", "sleep")
 
-    while not stop.is_set():
-        text = voice.suno()
-        if not text:
-            continue
-        cmd = wake_word_ke_baad(text)
-        if cmd is None:
-            continue  # naam nahi bola, to sirf standby mein raho
+    active = False          # "Hey Jarvis" ke baad True; chup rehne par wapas False
+    last_talk = 0.0
 
-        hud.post("state", "listen")
-        voice.bolo(f"Yes {s}?")
-        if not cmd:
+    def so_jao(msg=None):
+        nonlocal active
+        active = False
+        if msg:
+            voice.bolo(msg)
+        hud.post("state", "sleep")
+
+    while not stop.is_set():
+        text = voice.suno(max_wait=5)
+        if not text:
+            if active and time.time() - last_talk > config.SLEEP_AFTER:
+                so_jao(f"Going to standby, {s}. Say Hey Jarvis whenever you need me.")
+            continue
+
+        cmd = wake_word_ke_baad(text)
+        if not active:
+            if cmd is None:
+                continue                        # standby: sirf "Hey Jarvis" par jaago
+            active = True
+            last_talk = time.time()
             hud.post("state", "listen")
-            cmd = voice.suno()
             if not cmd:
-                hud.post("state", "sleep")
+                voice.bolo(f"Yes {s}? I am listening.")
+                hud.post("state", "listen")
                 continue
+        elif cmd is None:
+            cmd = text                          # active hai, to naam lene ki zaroorat nahi
+        elif not cmd:
+            voice.bolo(f"Yes {s}?")
+            hud.post("state", "listen")
+            last_talk = time.time()
+            continue
+        last_talk = time.time()
+
+        if any(w in cmd for w in config.SLEEP_WORDS):
+            so_jao(f"Okay {s}, going to standby. Say Hey Jarvis to wake me up.")
+            continue
 
         hud.post("log", cmd)
+        task = is_task(cmd)
+        if task:
+            voice.bolo(f"Starting the task, {s}.")
         hud.post("state", "work")
         try:
             jawab = skills.handle(cmd)
@@ -81,10 +109,12 @@ def jarvis_loop(hud, text_mode, stop, typed=None):
             hud.post("quit")
             return
         voice.bolo(jawab)
-        voice.bolo(f"Task done, {s}.")
+        if task:
+            voice.bolo(f"Task completed, {s}.")
         hud.post("info", {"learnt": str(len(knowledge.items)),
                           "mode": "ONLINE" if internet.internet_hai() else "OFFLINE"})
-        hud.post("state", "sleep")
+        hud.post("state", "listen")
+        last_talk = time.time()
 
 
 def main():
