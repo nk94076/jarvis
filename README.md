@@ -16,14 +16,14 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 
 ## Windows par aasaan setup
 
-1. **Python 3.12** install karo (python.org), aur **"Add python.exe to PATH"** tick karo.
+1. **Python** (3.10 ya naya) install karo (python.org), aur **"Add python.exe to PATH"** tick karo.
 2. **Ollama** install karo (ollama.com/download).
 3. Is folder mein **`setup.bat`** par double-click karo.
 4. Uske baad jab bhi chalana ho, **`JARVIS.bat`** par double-click karo.
 
 Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likho, aur `JARVIS.bat` ka shortcut us folder mein daal do.
 
-**`No module named 'pyttsx3'` jaisa error aaye:** `setup.bat` dobara chalao. Ab wo har library alag se install karta hai aur batata hai kaunsi fail hui. `pyaudio` fail ho to Python **3.12** use karo.
+**`No module named 'pyttsx3'` jaisa error aaye:** `setup.bat` dobara chalao. Ab wo har library alag se install karta hai aur batata hai kaunsi fail hui. JARVIS ab `pyaudio` ke bina chalta hai, isliye Python 3.12, 3.13 ya 3.14 sab chalenge.
 
 ## Setup (manual, ek baar)
 
@@ -37,7 +37,6 @@ Computer on hote hi JARVIS chalu karna ho: `Win + R` dabao, `shell:startup` likh
    ```bash
    pip install -r requirements.txt
    ```
-   Windows par `pyaudio` fail ho to: `pip install pipwin` aur `pipwin install pyaudio`.
 4. **Offline awaaz (optional):** https://alphacephei.com/vosk/models se
    `vosk-model-small-en-in-0.4` download karo, unzip karo, folder ka naam `model` rakho
    aur `main.py` ke saath rakho. Internet ho to Google speech apne aap use hoti hai.

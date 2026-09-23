@@ -2,12 +2,10 @@ ollama
 pyttsx3
 vosk
 sounddevice
+numpy
 SpeechRecognition
-pyaudio
 requests
 ddgs
 wikipedia
-pywhatkit
 psutil
 edge-tts
-pygame
