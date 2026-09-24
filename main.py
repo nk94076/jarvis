@@ -74,7 +74,7 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
         goals = skills.orchestrator._load()
         return {"brain_mode": config.BRAIN_MODE, "safe_mode": security.safe_mode(),
                 "learning": ", ".join(st.get("queue", [])[:3]) or "nothing",
-                "subjects": ", ".join(n for n, x in st.get("subjects", {}).items() if x.get("done_all"))[:60] or "-",
+                "subjects": ", ".join(skills.learner.learnt_subjects())[:60] or "-",
                 "skills": str(len(skills.plugins.list())), "tools": str(len(TOOLS)),
                 "goal": (f"{goals[-1]['goal'][:40]} ({goals[-1]['status']})" if goals else "-"),
                 "total": d["total"], "rate": f"{rate:.0f}%", "failed": d["failed"], "gaps": len(d["gaps"]),

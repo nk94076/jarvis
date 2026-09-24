@@ -102,6 +102,14 @@ class Learner:
         return self.thread is not None and self.thread.is_alive()
 
     # ---------- commands ----------
+    def notes_count(self, subject):
+        return sum(1 for i in self.knowledge.items if i["topic"].startswith(subject + ":"))
+
+    def learnt_subjects(self):
+        """Poore seekhe subjects (refresh chal raha ho tab bhi, ya notes memory mein hon)."""
+        return [n for n, x in self.state.get("subjects", {}).items()
+                if x.get("done_all") or x.get("learnt_once") or self.notes_count(n) >= max(len(x.get("syllabus", [])), 5)]
+
     def clear_queue(self):
         with self.lock:
             n = len(self.state["queue"])
@@ -142,6 +150,8 @@ class Learner:
         s = config.USER_NAME
         with self.lock:
             for name, subj in self.state["subjects"].items():
+                if subj.get("done_all"):
+                    subj["learnt_once"] = True         # refresh ke dauraan bhi "seekha hua" gina jaye
                 subj["done"] = []
                 subj["done_all"] = False
                 if name not in self.state["queue"]:
@@ -170,7 +180,13 @@ class Learner:
         parts = []
         for name, subj in self.state["subjects"].items():
             total, done = len(subj.get("syllabus", [])), len(subj.get("done", []))
-            parts.append(f"{name}: {'complete' if subj.get('done_all') else f'{done} of {total} chapters'}")
+            if subj.get("done_all"):
+                state = "complete"
+            elif subj.get("learnt_once") or self.notes_count(name) >= max(total, 5):
+                state = f"learnt, refreshing {done} of {total} chapters"
+            else:
+                state = f"{done} of {total} chapters"
+            parts.append(f"{name}: {state}")
         if not parts:
             return f"{s}, I have not started learning any subject yet."
         now = f" Right now I am learning {self.state['queue'][0]}." if self.busy() and self.state["queue"] else ""

@@ -246,7 +246,7 @@ class Skills:
         ideas = load_ideas()
         pending = [i for i in ideas if i["status"] == "pending"]
         if not pending:
-            done = [n for n, x in self.learner.state.get("subjects", {}).items() if x.get("done_all")]
+            done = self.learner.learnt_subjects()
             if not done:
                 return (f"{s}, I have not finished learning any subject yet, so there is nothing to apply. "
                         f"When I finish a subject I will think how to use it to improve myself.")
@@ -289,7 +289,7 @@ class Skills:
         parts.append(f"{len(ups)} code upgrades" + (f": {'; '.join(ups[-3:])}" if ups else ""))
         sk = self.plugins.list()
         parts.append(f"{len(sk)} new skills" + (f": {', '.join(m['name'].replace('_', ' ') for m in sk[-4:])}" if sk else ""))
-        subj = [n for n, x in self.learner.state.get("subjects", {}).items() if x.get("done_all")]
+        subj = self.learner.learnt_subjects()
         parts.append(f"{len(subj)} subjects learnt" + (f": {', '.join(subj[-5:])}" if subj else ""))
         q = self.learner.state.get("queue", [])
         if q:
