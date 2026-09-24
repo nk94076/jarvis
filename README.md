@@ -116,6 +116,17 @@ Security Layer (allow / ask / deny, safe mode, audit log) → Sandbox (alag proc
 | `apni kamiyan door karo` | Self-Upgrade Engine: gaps → skill → regression test → keep/rollback |
 | `skill history dikhao`, `undo last skill change` | Git version/branch system (Git install ho to) |
 
+## 🧬 Khud ko smart banana (v9.1)
+
+| Bolo | Kya hoga |
+|---|---|
+| `internet se seekho aur khud ko smart banao` | Seekha gyaan internet se taaza + jo kaam nahi kar paya uski skills + (aapse poochkar) apne code ka ek sudhaar |
+| `python ke bare mein internet se seekho aur khud ko smart banao` | Python seekhna shuru + baaki upar wala |
+| `apna code upgrade karo taaki reminders hindi mein bhi samjhe` | **Safe Self-Code-Upgrade**: apna code padhta hai → badlav alag copy par → saare tests → fail ho to khud fix (3 baar) → Notepad mein badlav dikhata hai → **aapke "yes" par hi** lagata hai (backup ke saath) |
+| `self upgrade undo` | Pichla code wapas |
+
+Suraksha: `security.py`, `selftest.py`, `sandbox.py` aur `selfcode.py` ko JARVIS kabhi nahi badal sakta.
+
 ## 🔄 Update kaise karein
 
 - **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.

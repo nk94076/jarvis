@@ -24,6 +24,7 @@ from . import security
 from . import project as project_mod
 from . import versioning
 from . import selfupgrade
+from . import selfcode
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -179,6 +180,16 @@ class Skills:
             return versioning.history()
         if re.search(r"undo (last )?skill change|skill change undo", cmd):
             return versioning.undo_last()
+        if re.search(r"(self|code) upgrade undo|undo (self|code) upgrade|pichla code wapas", cmd):
+            return selfcode.undo()
+        m = re.search(r"(?:apna|apne|your|khud ka|khud ke)\s+code\s+(?:ko\s+)?(?:upgrade|improve|sudhaar|sudhar|better|update|behtar)\w*"
+                      r"\s*(?:karo|kar do|karke)?\s*(?:taaki|so that|ki|:)?\s*(.*)", cmd)
+        if m:
+            if len(m.group(1).split()) < 2:
+                return f"{s}, what should I improve in my code? Say for example: apna code upgrade karo taaki reminders hindi mein bhi samjhe."
+            return self.selfcoder().propose(m.group(1))
+        if re.search(r"(khud ko|apne aap ko|yourself)\s+(smart|smarter|intelligent|behtar|better)|smart bano|smarter bano", cmd):
+            return self.smart_upgrade(cmd)
         if re.search(r"apni kamiyan|kamiyan door|self.?upgrade engine|fix your gaps|upgrade your (skills|capabilities)|"
                      r"jo nahi kar paye (wo|woh) seekho", cmd):
             return selfupgrade.run(self.plugins, self.agent.confirm, self.agent.progress)
@@ -198,6 +209,34 @@ class Skills:
         if m and not re.search(r"search", cmd):
             return self.orchestrator.agent.run(m.group(1), set(agent_mod.CATEGORIES.get("browser", [])))
         return None
+
+    def selfcoder(self):
+        return selfcode.SelfCoder(agent_mod.llm, self.agent.confirm, self.agent.progress)
+
+    def smart_upgrade(self, cmd):
+        """'internet se seekho aur khud ko smart banao': gyaan taaza + kamiyon ki skills + apne code ka ek sudhaar."""
+        s = config.USER_NAME
+        report = []
+        topic = re.search(r"(.+?)\s+(?:ke bare mein|ke baare mein|about)\b", cmd)
+        topic = subject_from(topic.group(1)) if topic else ""
+        if topic and len(topic.split()) <= 4 and topic not in ("khud", "apne"):
+            report.append(self.learner.start(topic).split(".")[0] + ".")
+        elif self.learner.state.get("subjects"):
+            self.learner.upgrade()
+            report.append("I am refreshing everything I have learnt with the latest information from the internet.")
+        else:
+            report.append("I have not learnt any subject yet, so tell me a topic to learn, like: learn python.")
+        if selfupgrade.gaps():
+            report.append(selfupgrade.run(self.plugins, self.agent.confirm, self.agent.progress))
+        lessons = selfimprove.lessons_for("self code upgrade skill goal step failed", limit=3)
+        d, _ = selfimprove.summary()
+        recent = [f["error"] for f in d["failures"][-5:]]
+        if (lessons or recent) and self.agent.confirm(f"{s}, should I also read my own code and try to fix my most "
+                                                      f"common mistake?"):
+            idea = agent_mod.llm("From these recent problems of a voice assistant, write ONE small, concrete code "
+                                 "improvement request (one sentence):\n" + "\n".join(lessons + recent))
+            report.append(self.selfcoder().propose(idea.strip()[:300]))
+        return f"{s}, " + " ".join(report)
 
     def phase2(self, cmd):
         """Gmail, Calendar, GitHub, Git, Database, Server, Smart home, Vision, Coding, Schedules, Cloud brain."""
@@ -379,7 +418,13 @@ class Skills:
     def jarvis_facts(self):
         """JARVIS apne baare mein sach bataye (sawaal: 'band kar dun to bhi seekhoge?')."""
         q = self.learner.state.get("queue", [])
-        return ("Facts about yourself (JARVIS): learning runs in the background only while JARVIS is running. "
+        online = internet.internet_hai()
+        return ("Facts about yourself (JARVIS), always answer consistently with these: "
+                f"You are {'CONNECTED to the internet right now' if online else 'OFFLINE right now (no internet)'}. "
+                "YES, you can use the internet: Google/web search, reading websites, deep research reports, news, "
+                "weather, Wikipedia, learning whole subjects, controlling a real browser (Playwright) and testing "
+                "websites. You are male: in Hindi/Hinglish always use masculine forms (kar sakta hoon, main karta hoon). "
+                "Learning runs in the background only while JARVIS is running. "
                 "If the user closes JARVIS, learning pauses and automatically continues from the same chapter "
                 "next time JARVIS starts. Nothing learnt is lost; memory is deleted only if the user says "
                 "'memory delete karo' and confirms. "
@@ -431,7 +476,8 @@ class Skills:
                     return f"{s}, the update window is open. When it finishes, close me and start JARVIS again."
                 return f"{s}, please run update.bat from the JARVIS folder."
             return f"Okay {s}, no update."
-        if re.search(r"(code|software|version|jarvis)\s+(update|updte)|update (your )?(code|software|version)|naya version", cmd):
+        if re.search(r"(code|software|version|jarvis)\s+(update|updte)|update (your )?(code|software|version)|naya version", cmd) \
+                and not re.search(r"taaki|so that|apna code|apne code|khud ka code|improve", cmd):
             self.pending = "code_update"
             return f"{s}, should I download the latest version of my code? Your memory will stay safe. Say yes or no."
 
