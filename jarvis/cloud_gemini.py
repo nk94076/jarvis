@@ -5,8 +5,6 @@ Setup: aistudio.google.com par free API key banao, phir JARVIS Data/my_settings.
     BRAIN_MODE = "auto"
     CLOUD_PROVIDER = "gemini"
 """
-import requests
-
 from . import config
 
 
@@ -15,6 +13,7 @@ def available():
 
 
 def chat(messages):
+    import requests
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
     contents = [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
                 for m in messages if m["role"] in ("user", "assistant") and m.get("content")]
