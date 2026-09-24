@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "6.1"
+VERSION = "7.0"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -20,6 +20,13 @@ STOP_WORDS = ["stop", "ruko", "rukiye", "ruk", "bas", "cancel", "chup", "rokiye"
 STOP_PHRASES = ["ruk jao", "bas karo", "band karo"]
 # ---- Main Brain / Agents ----
 AGENT_MODEL = OLLAMA_MODEL
+# ---- Cloud AI (optional) ----
+BRAIN_MODE = "local"                 # "local" (sirf Ollama), "auto" (internet ho to cloud), "cloud"
+CLOUD_PROVIDER = "claude"            # "claude" ya "gemini"
+ANTHROPIC_API_KEY = ""               # my_settings.py mein daalo, yahan nahi
+CLAUDE_MODEL = "claude-opus-5"
+GEMINI_API_KEY = ""
+GEMINI_MODEL = "gemini-2.5-flash"
 CHAT_TURNS = 16                      # baatcheet ke kitne pichhle messages AI ko dikhein
 KEEP_ALIVE = "60m"                   # model itni der GPU/RAM mein load rahe (tez jawab)
 TEMPERATURE = 0.6                    # kam = seedha, zyada = creative
@@ -31,6 +38,24 @@ PROJECTS = {
     "jarvis": str(Path(__file__).resolve().parent.parent),
     # "website": r"C:\Users\Naveen\Projects\website",
 }
+
+# ---- Vision / camera ----
+VISION_MODEL = "qwen2.5vl:7b"        # camera/screen/photo dekhne wala model
+WEBCAM_INDEX = 0
+CAMERAS = {}                         # CCTV: {"gate": "rtsp://user:pass@192.168.1.20:554/stream1"}
+# ---- Phase 2 integrations (my_settings.py mein bharo) ----
+GMAIL_ADDRESS = ""
+GMAIL_APP_PASSWORD = ""
+CALENDAR_ICS_URL = ""
+GITHUB_TOKEN = ""
+GITHUB_USER = ""
+DATABASES = {}                       # {"shop": "sqlite:///C:/data/shop.db", "crm": "mysql://user:pass@host/db"}
+SERVERS = {}                         # {"web": {"host": "1.2.3.4", "user": "root", "key": r"C:\Users\me\.ssh\id_rsa"}}
+HOME_ASSISTANT_URL = ""              # "http://homeassistant.local:8123"
+HOME_ASSISTANT_TOKEN = ""
+PHONE_APP = True                     # phone se JARVIS (ghar ka WiFi)
+PHONE_PORT = 8765
+PHONE_PIN = ""                       # khali = apne aap bana dega
 
 # WhatsApp aur email ke liye apne contacts yahan likho (naam chhote aksharon mein)
 CONTACTS = {

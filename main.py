@@ -63,18 +63,31 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.confirm = confirm
     skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
     skills.agent.stop = interrupt
+    from jarvis.scheduler import Scheduler, notify
+    skills.scheduler = Scheduler(skills.handle, lambda msg: (hud.post("log", "⏰ " + msg[:50]), voice.bolo(msg)))
+    if getattr(config, "PHONE_APP", True):
+        from jarvis import remote
+        _, phone = remote.start(skills.handle, on_command=lambda t: hud.post("log", "📱 " + t))
+        print(f"[phone] Phone se JARVIS: {phone}")
+        hud.post("log", "📱 " + phone)
     skills.plugins.confirm = confirm
     skills.plugins.progress = lambda text: hud.post("log", "🛠 " + text)
     skills.learner.notify = lambda msg: (hud.post("log", "📚 " + msg[:60]),
                                          hud.post("info", {"learnt": knowledge_info()}), voice.bolo(msg))
     s = config.USER_NAME
 
+    def brain_label():
+        from jarvis.llm_client import cloud_provider
+        prov = cloud_provider()
+        return (config.CLAUDE_MODEL if prov.__name__.endswith("claude") else config.GEMINI_MODEL) if prov \
+            else config.OLLAMA_MODEL
+
     def knowledge_info():
         from jarvis.skills_extra import FACTS_FILE, _load
         return f"{len(knowledge.items)} topics, {len(_load(FACTS_FILE, []))} facts"
 
     online = internet.internet_hai()
-    hud.post("info", {"mode": "ONLINE" if online else "OFFLINE", "brain": config.OLLAMA_MODEL,
+    hud.post("info", {"mode": "ONLINE" if online else "OFFLINE", "brain": brain_label(),
                       "voice": "MIC + KEYBOARD" if voice.mic_ok and not text_mode else "KEYBOARD",
                       "learnt": knowledge_info()})
     if online:

@@ -11,3 +11,6 @@ psutil
 edge-tts
 pillow
 pypdf
+anthropic
+opencv-python
+paramiko

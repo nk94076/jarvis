@@ -53,6 +53,42 @@ JARVIS dobara chalao, to HUD mein **BRAIN: qwen2.5:14b** dikhega.
 - Skills `JARVIS Data\skills` mein alag files hain; JARVIS apna core code kabhi khud nahi badalta.
 - **`update.bat`** pehle backup banata hai, update ke baad regression test chalata hai, fail ho to purana version khud wapas lata hai. **`rollback.bat`** se kabhi bhi pichla version.
 
+## 🚀 Phase 2 & 3 (v7)
+
+| Bolo | Kya hoga | Setup chahiye? |
+|---|---|---|
+| `python mein program likho jo ...` (JavaScript, PHP, Java, C++, Go, Rust bhi) | Code likhta, chalata, error aaye to khud fix (3 baar) | Language install honi chahiye |
+| `run calculator.py`, `test karo app.js` | File chala kar result / error samjhata hai | – |
+| `har roz subah 9 baje news sunao`, `schedules dikhao`, `schedule 1 hatao` | Tay samay par kaam + Windows notification | – |
+| `camera se dekho kya dikh raha hai`, `screen ko dekho`, `photo beach dekho` | Vision model se dekh kar batata hai | `upgrade_brain.bat` (vision model) |
+| `gate cctv dekho` | CCTV camera ki photo le kar batata hai | `CAMERAS` |
+| `check my email`, `naye mails batao` | Unread emails ki summary | Gmail App Password |
+| `send email to nk94076 at gmail dot com subject hi message kal milte hain` | Confirm karke bhejta hai | Gmail App Password |
+| `aaj ki meetings batao`, `add meeting with rahul kal 4 baje` | Calendar padhna / event page | Calendar iCal link |
+| `github repos`, `github issues of jarvis`, `clone github jarvis`, `commit my jarvis project` | GitHub | GitHub token |
+| `shop database mein kitne users hain` | Sirf-padhne wali SQL query | `DATABASES` |
+| `web server status check karo` | SSH se server status | `SERVERS` |
+| `bedroom ki light on karo`, `hall ka ac 24 par set karo` | Smart home | Home Assistant |
+| `cloud brain on karo` / `local brain on karo` / `auto brain` | Claude/Gemini aur local ke beech switch | API key |
+| **Phone se JARVIS** | Console mein dikhe address ko phone ke browser mein kholo, PIN daalo, "Add to Home screen" | Same WiFi |
+
+### Phase 2 setup (sab `JARVIS Data\my_settings.py` mein)
+
+- **Gmail:** Google Account → Security → 2-Step Verification on → "App passwords" → naya password banao.
+  `GMAIL_ADDRESS = "aap@gmail.com"` aur `GMAIL_APP_PASSWORD = "abcd efgh ijkl mnop"`
+- **Calendar:** calendar.google.com → Settings → apna calendar → "Secret address in iCal format" copy karo.
+  `CALENDAR_ICS_URL = "https://calendar.google.com/calendar/ical/.../basic.ics"`
+- **GitHub:** github.com → Settings → Developer settings → Personal access tokens → Fine-grained token (repo read/write).
+  `GITHUB_TOKEN = "github_pat_..."` aur `GITHUB_USER = "nk94076"`
+- **Cloud AI (optional):** Claude: console.anthropic.com se key → `ANTHROPIC_API_KEY = "sk-ant-..."`, `BRAIN_MODE = "auto"`.
+  Gemini (free tier): aistudio.google.com se key → `GEMINI_API_KEY = "..."`, `CLOUD_PROVIDER = "gemini"`, `BRAIN_MODE = "auto"`.
+- **Database:** `DATABASES = {"shop": "sqlite:///C:/data/shop.db"}` (MySQL: `pip install pymysql`, Postgres: `pip install psycopg2-binary`).
+- **Server:** `SERVERS = {"web": {"host": "1.2.3.4", "user": "root", "key": r"C:\Users\me\.ssh\id_rsa"}}`
+- **Smart home:** Home Assistant install karo → Profile → Long-lived access token.
+  `HOME_ASSISTANT_URL = "http://homeassistant.local:8123"`, `HOME_ASSISTANT_TOKEN = "..."`
+- **CCTV:** `CAMERAS = {"gate": "rtsp://user:pass@192.168.1.20:554/stream1"}`
+- **Phone PIN badalna:** `PHONE_PIN = "4321"`; band karna: `PHONE_APP = False`
+
 ## 🔄 Update kaise karein
 
 - **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.

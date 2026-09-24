@@ -19,7 +19,8 @@ def main():
     if not compileall.compile_dir(str(ROOT / "jarvis"), quiet=1) or not compileall.compile_file(str(ROOT / "main.py"), quiet=1):
         failed.append("syntax error in code")
     for mod in ["config", "brain", "knowledge", "learner", "skills", "skills_extra", "agent", "pc", "builder",
-                "plugins", "selfimprove", "audit", "internet", "voice"]:
+                "plugins", "selfimprove", "audit", "internet", "voice", "integrations", "vision", "coder",
+                "scheduler", "remote", "llm_client", "cloud_claude", "cloud_gemini", "intent"]:
         try:
             importlib.import_module(f"jarvis.{mod}")
         except Exception as e:

@@ -16,6 +16,9 @@ from . import audit
 from . import selfimprove
 from .plugins import PluginManager
 from . import intent
+from . import integrations as ig
+from . import vision
+from . import coder
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -147,6 +150,96 @@ class Skills:
         self.learner = Learner(knowledge, lambda prompt: agent_mod.llm(prompt))
         self.plugins = PluginManager(lambda prompt: agent_mod.llm(prompt))
         self.route = ""
+        self.scheduler = None       # main.py lagata hai
+        import threading
+        self.lock = threading.RLock()   # awaaz, phone aur schedules ek saath na takrayein
+
+    def phase2(self, cmd):
+        """Gmail, Calendar, GitHub, Git, Database, Server, Smart home, Vision, Coding, Schedules, Cloud brain."""
+        s = config.USER_NAME
+        llm = agent_mod.llm
+        confirm = self.agent.confirm
+        # ---- schedules ----
+        if self.scheduler:
+            if re.search(r"(my |meri |sab )?schedules? (dikhao|batao|list)|show (my )?schedules|what are my schedules", cmd):
+                return self.scheduler.describe()
+            m = re.search(r"(?:schedule|shedule)\s+(\d+)\s+(?:hatao|delete|remove|band)|(?:delete|remove)\s+schedule\s+(\d+)", cmd)
+            if m:
+                return self.scheduler.remove(int(m.group(1) or m.group(2)))
+            added = self.scheduler.add(cmd)
+            if added:
+                return added
+        # ---- cloud / local brain ----
+        m = re.search(r"(cloud|local|auto)\s+(brain|dimaag|mode)\s*(on|chalu|karo|use karo)?", cmd)
+        if m:
+            config.BRAIN_MODE = {"cloud": "cloud", "local": "local", "auto": "auto"}[m.group(1)]
+            from .llm_client import cloud_provider
+            note = "" if config.BRAIN_MODE == "local" or cloud_provider() else \
+                " But no cloud API key is set, so I will keep using the local brain."
+            return f"Okay {s}, brain mode is now {config.BRAIN_MODE}.{note}"
+        # ---- gmail ----
+        if re.search(r"(unread|new|naye|naya|kitne)\s+(e-?mails?|mails?)|(e-?mails?|mails?|inbox)\s+(check|padho|dekho|batao|read|sunao)|"
+                     r"check (my )?(e-?mail|mail|inbox)|read (my )?(e-?mails?|mails?)", cmd):
+            return ig.gmail_unread(llm=llm)
+        m = re.search(r"(?:send|bhejo)\b.*?(?:e-?mail|mail)", cmd)
+        if m and getattr(config, "GMAIL_APP_PASSWORD", "") and re.search(r"\b(message|body)\b", cmd):
+            to = extra.spoken_email(cmd) or next((a for n, a in config.EMAILS.items() if n in cmd), "")
+            sub = re.search(r"subject\s+(?:is\s+)?(.+?)(?:\s+(?:message|body)\b|$)", cmd)
+            body = re.search(r"(?:message|body)\s+(?:is\s+)?(.+)", cmd)
+            if to and body and confirm(f"{s}, send email to {to}: {body.group(1)[:80]}?"):
+                return ig.gmail_send(to, sub.group(1) if sub else "Message from JARVIS", body.group(1))
+        # ---- calendar ----
+        m = re.search(r"(?:add|daalo|create|set|lagao)\s+(?:a\s+|ek\s+)?(?:meeting|event|appointment)\s+(.+)|"
+                      r"calendar (?:mein|me|par|pe) (.+?) (?:add|daalo|dalo)", cmd)
+        if m:
+            text = m.group(1) or m.group(2)
+            title = re.sub(r"\b(at|on|kal|tomorrow|aaj|today|\d{1,2}([:.]\d{2})?\s*(am|pm|baje)?)\b", " ", text)
+            title = " ".join(title.split()).title() or "Meeting"
+            if title.lower().startswith(("with ", "se ")):
+                title = "Meeting " + title
+            return ig.calendar_add(title, text)
+        if re.search(r"\b(calendar|meetings?|events?|appointments?)\b", cmd) and not re.search(r"\b(add|create|daalo)\b", cmd):
+            return ig.calendar_day(1 if re.search(r"\b(kal|tomorrow)\b", cmd) else 0)
+        # ---- github / git ----
+        if "github" in cmd:
+            return ig.github(cmd, llm)
+        m = re.search(r"(?:commit|push)\s+(?:and push\s+)?(?:my\s+|the\s+)?(\w+)\s+project|(\w+)\s+project\s+(?:ko\s+)?(?:commit|push)", cmd)
+        if m:
+            name = m.group(1) or m.group(2)
+            path = config.PROJECTS.get(name)
+            if not path:
+                return f"{s}, I do not know the {name} project. Add it to PROJECTS in my_settings.py."
+            if not confirm(f"{s}, should I commit and push all changes in the {name} project?"):
+                return f"Okay {s}, cancelled."
+            return ig.git_commit_push(path, f"Update from JARVIS {datetime.datetime.now():%Y-%m-%d %H:%M}")
+        # ---- database / server / smart home ----
+        if re.search(r"\b(database|db)\b", cmd):
+            return ig.database(cmd, llm)
+        if re.search(r"\b(server|ssh)\b", cmd):
+            return ig.server(cmd, confirm)
+        if re.search(r"\b(lights?|batti|bulb|lamp|fan|pankha|ac|thermostat|geyser|tv)\b", cmd) and \
+                re.search(r"\b(on|off|band|chalu|jala|bujha|set|karo|kar do|\d{2})\b", cmd):
+            return ig.smart_home(cmd)
+        # ---- vision ----
+        if re.search(r"\b(cctv|gate camera|door camera)\b", cmd):
+            return vision.cctv(cmd, cmd)
+        if re.search(r"camera\s+(se\s+|mein\s+)?(dekho|dekh|look|check)|what do you see|kya dikh raha|mujhe dekho|look at me|"
+                     r"camera (on|kholo) (karo )?(aur|and)", cmd):
+            return vision.look_camera(cmd)
+        if re.search(r"screen\s+(ko\s+)?(dekho|dekh kar|analy[sz]e)|look at (my )?screen|screen par kya ho raha|explain (my|the) screen", cmd):
+            return vision.look_screen(cmd)
+        m = re.search(r"(?:image|photo|picture|tasveer|pic)\s+(.+?)\s+(?:dekho|analy[sz]e|describe|batao|mein kya hai)|"
+                      r"(?:analy[sz]e|describe|dekho)\s+(?:the\s+|my\s+)?(?:image|photo|picture|pic)\s+(.+)", cmd)
+        if m:
+            return vision.look_image((m.group(1) or m.group(2)).strip(), cmd)
+        # ---- coding ----
+        if re.search(r"(program|code|script|function)\s+(likho|likh do|banao|bana do|write)|write (a |an |me a )?(\w+ )?(program|code|script)|"
+                     r"(program|code) (likh|bana)", cmd):
+            return coder.write_and_run(cmd, llm, progress=self.agent.progress)
+        m = re.search(r"(?:run|test|chalao|test karo)\s+(?:the\s+)?(?:file\s+)?([\w./\\: -]+\.(?:py|js|php|java|cpp|c|go|rs|sh))", cmd)
+        if m:
+            return coder.test_file(m.group(1), llm)
+        return None
 
     def self_upgrade(self, cmd):
         """Skill Builder, self-test, dashboard, suggestions, audit. Match na ho to None."""
@@ -189,7 +282,8 @@ class Skills:
         """handle ke upar record: success / failure / capability gap (self-improvement ke liye)."""
         self.route = ""
         try:
-            reply = self._handle(cmd)
+            with self.lock:
+                reply = self._handle(cmd)
         except Exception as e:
             selfimprove.record(cmd, "", ok=False, error=f"{type(e).__name__}: {e}")
             raise
@@ -295,6 +389,11 @@ class Skills:
 
         # ---- self-upgrade: skill builder, self-test, dashboard, audit ----
         jawab = self.self_upgrade(cmd)
+        if jawab:
+            return jawab
+
+        # ---- Phase 2/3: gmail, calendar, github, db, server, smart home, vision, coding, schedules ----
+        jawab = self.phase2(cmd)
         if jawab:
             return jawab
 

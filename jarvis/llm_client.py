@@ -36,7 +36,31 @@ def pick(model):
     return best
 
 
+def cloud_provider():
+    """Is waqt cloud use karna hai? To module lautao, warna None."""
+    mode = getattr(config, "BRAIN_MODE", "local")
+    if mode == "local":
+        return None
+    from . import cloud_claude, cloud_gemini
+    prov = cloud_gemini if config.CLOUD_PROVIDER == "gemini" else cloud_claude
+    if not prov.available():
+        return None
+    if mode == "auto":
+        from .internet import internet_hai
+        if not internet_hai():
+            return None
+    return prov
+
+
 def chat(messages, model=None, tools=None):
+    """Tools wale (agent) calls hamesha local; baaki: cloud (agar set hai) warna local."""
+    if not tools:
+        prov = cloud_provider()
+        if prov:
+            try:
+                return {"message": {"content": prov.chat(messages)}}
+            except Exception as e:
+                print(f"[brain] Cloud AI fail ({type(e).__name__}: {str(e)[:120]}), local dimaag use kar raha hoon.")
     import ollama
     kwargs = {"model": pick(model or config.OLLAMA_MODEL), "messages": messages, "keep_alive": config.KEEP_ALIVE,
               "options": {"temperature": config.TEMPERATURE, "num_ctx": config.CONTEXT_SIZE}}

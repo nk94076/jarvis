@@ -14,6 +14,9 @@ if errorlevel 1 (
     exit /b 1
 )
 ollama pull qwen2.5:14b
+echo.
+echo Camera/screen dekhne wala dimaag (vision, lagbhag 6 GB)...
+ollama pull qwen2.5vl:7b
 if errorlevel 1 (
     echo [X] Download fail hua. Internet check karke dobara chalao.
     pause
