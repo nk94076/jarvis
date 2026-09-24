@@ -180,6 +180,10 @@ class Skills:
             return versioning.history()
         if re.search(r"undo (last )?skill change|skill change undo", cmd):
             return versioning.undo_last()
+        if re.search(r"(badlav|changes|upgrades?|sudhaar)\s+(export|bhejo|share|dikhao)|export (your|apne) (changes|badlav)", cmd):
+            if re.search(r"share|bhejo|github", cmd):
+                return selfcode.share_to_github() or selfcode.export_patches()
+            return selfcode.export_patches()
         if re.search(r"(self|code) upgrade undo|undo (self|code) upgrade|pichla code wapas", cmd):
             return selfcode.undo()
         m = re.search(r"(?:apna|apne|your|khud ka|khud ke)\s+code\s+(?:ko\s+)?(?:upgrade|improve|sudhaar|sudhar|better|update|behtar)\w*"

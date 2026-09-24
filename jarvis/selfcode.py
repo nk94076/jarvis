@@ -152,6 +152,10 @@ class SelfCoder:
             shutil.copy2(stage / rel, ROOT / rel)
         (backup / "summary.txt").write_text(summary, encoding="utf-8")
         save_patch(summary, edits, backup.name)
+        try:
+            share_to_github(quiet=True)                   # developer ko automatic dikhe (token ho to)
+        except Exception as e:
+            print(f"[selfcode] GitHub par share nahi hua: {e}")
         from . import selfimprove
         selfimprove.record(f"self code upgrade: {summary}", "applied")
         return (f"Done {s}. I upgraded my own code: {summary}. Please restart me to use it. If anything goes wrong, "
@@ -227,3 +231,61 @@ if __name__ == "__main__":                            # update.bat: python -m ja
         print(f"   JARVIS ke apne sudhaar: {len(a)} dobara lagaye, {len(al)} pehle se the, {len(c)} takraaye (chhode)")
         for x in c:
             print("     chhoda (naye code se takraav):", x)
+
+
+# ======================= Developer ke saath sharing =======================
+SHARE_BRANCH = "jarvis-self-upgrades"
+SHARE_PATH = "self_patches/patches.json"
+
+
+def export_patches():
+    """Saare self-upgrades ek readable file mein (developer ko bhejne ke liye)."""
+    s = config.USER_NAME
+    items = load_patches()
+    if not items:
+        return f"{s}, I have not made any code changes to myself yet, so there is nothing to export."
+    out_dir = Path.home() / "Documents" / "JARVIS Reports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md = [f"# JARVIS self-upgrades (version {config.VERSION}, {datetime.now():%Y-%m-%d %H:%M})\n"]
+    for i, p in enumerate(items, 1):
+        md.append(f"## {i}. {p['summary']}  ({p['time']})")
+        for e in p["edits"]:
+            md.append(f"File: `{e.get('file')}`\n```diff")
+            md += [f"- {ln}" for ln in str(e.get("find", "")).splitlines()]
+            md += [f"+ {ln}" for ln in str(e.get("replace", "")).splitlines()]
+            md.append("```")
+    md.append("\n<details><summary>patches.json</summary>\n\n```json\n" + json.dumps(items, ensure_ascii=False, indent=1)
+              + "\n```\n</details>")
+    path = out_dir / "jarvis_self_changes.md"
+    path.write_text("\n".join(md), encoding="utf-8")
+    if sys.platform == "win32":
+        subprocess.Popen(["notepad", str(path)])
+    return (f"{s}, I exported {len(items)} self-upgrades to Documents, JARVIS Reports, jarvis_self_changes.md. "
+            f"You can send this file to the developer.")
+
+
+def share_to_github(quiet=False):
+    """patches.json ko GitHub repo ki alag branch par bhejo, taaki developer naya code push karne se pehle dekh sake."""
+    import base64
+    s = config.USER_NAME
+    token, repo = getattr(config, "GITHUB_TOKEN", ""), getattr(config, "JARVIS_REPO", "")
+    if not (token and repo):
+        return None if quiet else (f"{s}, to share my changes automatically, add GITHUB_TOKEN in my_settings.py. "
+                                   f"Or say: apne badlav export karo.")
+    import requests
+    api = f"https://api.github.com/repos/{repo}"
+    h = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    ref = requests.get(f"{api}/git/ref/heads/{SHARE_BRANCH}", headers=h, timeout=20)
+    if ref.status_code == 404:                           # branch pehli baar banao
+        base = requests.get(f"{api}/git/ref/heads/{config.JARVIS_BASE_BRANCH}", headers=h, timeout=20)
+        base.raise_for_status()
+        requests.post(f"{api}/git/refs", headers=h, timeout=20, json={
+            "ref": f"refs/heads/{SHARE_BRANCH}", "sha": base.json()["object"]["sha"]}).raise_for_status()
+    cur = requests.get(f"{api}/contents/{SHARE_PATH}", headers=h, params={"ref": SHARE_BRANCH}, timeout=20)
+    body = {"message": f"JARVIS self-upgrades ({len(load_patches())} patches, v{config.VERSION})",
+            "content": base64.b64encode(json.dumps(load_patches(), ensure_ascii=False, indent=1).encode()).decode(),
+            "branch": SHARE_BRANCH}
+    if cur.status_code == 200:
+        body["sha"] = cur.json()["sha"]
+    requests.put(f"{api}/contents/{SHARE_PATH}", headers=h, json=body, timeout=30).raise_for_status()
+    return f"{s}, I shared my {len(load_patches())} self-upgrades on GitHub branch {SHARE_BRANCH} for the developer."

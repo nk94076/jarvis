@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "9.10"
+VERSION = "9.11"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -49,6 +49,8 @@ GMAIL_APP_PASSWORD = ""
 CALENDAR_ICS_URL = ""
 GITHUB_TOKEN = ""
 GITHUB_USER = ""
+JARVIS_REPO = "nk94076/jarvis"       # JARVIS ke self-upgrades yahan share hote hain (developer dekh sake)
+JARVIS_BASE_BRANCH = "naveen/trusting-wright-m001cv"
 DATABASES = {}                       # {"shop": "sqlite:///C:/data/shop.db", "crm": "mysql://user:pass@host/db"}
 SERVERS = {}                         # {"web": {"host": "1.2.3.4", "user": "root", "key": r"C:\Users\me\.ssh\id_rsa"}}
 HOME_ASSISTANT_URL = ""              # "http://homeassistant.local:8123"
