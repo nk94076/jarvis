@@ -14,6 +14,14 @@ from datetime import datetime
 from . import config, internet
 
 LEARN_FILE = config.DATA_DIR / "learning.json"
+IDEAS_FILE = config.DATA_DIR / "ideas.json"
+
+
+def load_ideas():
+    try:
+        return json.loads(IDEAS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
 LEARN_FILLER = ["ek kaam karo", "ek kam karo", "internet se", "google se", "learn karna start karo", "learn karna",
                 "sikhna start karo", "seekhna start karo", "start karo", "shuru karo", "learn", "seekhna",
                 "sikhna", "seekho", "sikho", "sikhao", "sikhana", "seekhao", "seekh lo", "sikh lo", "karo", "kar do", "start", "sab kuch", "poora",
@@ -200,6 +208,7 @@ class Learner:
                     self.state["queue"].pop(0)
                     self._save()
                 n = len(self.state["subjects"][subject]["done"])
+                self._apply_idea(subject)
                 self.notify(f"{config.USER_NAME}, I have finished learning {subject}. I learnt {n} chapters "
                             f"and saved everything in my memory. Ask me anything about {subject}.")
 
@@ -240,6 +249,20 @@ class Learner:
         subj["score"] = round(sum(scores.values()) / len(scores)) if scores else None
         self._save()
         return True
+
+    # ---------- seekha hua apne upar lagana ----------
+    def _apply_idea(self, subject):
+        """Subject seekhne ke baad: is gyaan se JARVIS ka code kaise behtar ho? Idea ideas.json mein (lagana aap approve karte ho)."""
+        notes = "\n".join(i["notes"][:500] for i in self.knowledge.items if i["topic"].startswith(subject + ":"))[:4000]
+        idea = self.llm(f"You are JARVIS, a Python voice assistant for a Windows PC (voice commands, learning, browser, "
+                        f"skills, marketing research). You just learnt '{subject}'. Notes:\n{notes}\n\n"
+                        "Suggest ONE small, concrete improvement to your OWN behaviour or code that uses this knowledge "
+                        "(one sentence, starting with a verb). If this subject cannot improve you, reply exactly NONE.").strip()
+        if not idea or idea.upper().startswith("NONE") or len(idea) > 400:
+            return
+        ideas = load_ideas()
+        ideas.append({"subject": subject, "idea": idea, "status": "pending", "time": datetime.now().strftime("%Y-%m-%d %H:%M")})
+        IDEAS_FILE.write_text(json.dumps(ideas[-100:], ensure_ascii=False, indent=1), encoding="utf-8")
 
     # ---------- self test ----------
     def _quiz_chapter(self, subject, chapter):

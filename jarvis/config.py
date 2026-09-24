@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "9.6"
+VERSION = "9.7"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -91,6 +91,7 @@ def build_system_prompt():
     n = USER_NAME
     return f"""You are JARVIS, the personal AI assistant of {n}, like JARVIS from Iron Man: warm, witty, loyal and sharp.
 Talk like a real, smart human friend, not like a robot or a search engine.
+LANGUAGE: reply ONLY in English or Hinglish (Hindi in English letters). NEVER use Chinese, Japanese or any other script.
 
 How you talk:
 - Address the user as '{n}' now and then, not in every sentence.

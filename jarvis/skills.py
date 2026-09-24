@@ -191,6 +191,9 @@ class Skills:
         if re.search(r"(core|apna|apne|khud ka|khud ke|tumhara)\s+(core\s+)?code\s+(ko\s+)?(check|review|dekho|padho|analy[sz]e)", cmd) \
                 and not re.search(r"smart|sikh|seekh", cmd):
             return self.self_review()
+        if re.search(r"(seekha|sikha|seekhi|sikhi|learnt|learned|learning)\s+(hua|hui|cheezein|cheeze|things|knowledge)?\s*"
+                     r"(apply|lagao|use karo|apne upar)|apply (your |my )?(learnings?|knowledge)|khud (par|pe|per) apply", cmd):
+            return self.apply_learnings()
         if re.search(r"(kya kya|kitne|which|what)\s+(upgrade|upgrades|sudhaar|improvement)|upgrade (list|history)|"
                      r"kya (upgrade|seekha|badla) (hua|hue|kiya)|changelog", cmd):
             return self.upgrade_history()
@@ -234,6 +237,47 @@ class Skills:
                     f"could not do, and check and improve my own code with your permission. Just say: internet se "
                     f"seekho aur khud ko smart banao.")
         return None
+
+    def apply_learnings(self):
+        """Seekhe subjects se bane ideas ek-ek karke: batao -> "yes" -> safe self-code-upgrade."""
+        from .learner import load_ideas, IDEAS_FILE
+        import json as _json
+        s = config.USER_NAME
+        ideas = load_ideas()
+        pending = [i for i in ideas if i["status"] == "pending"]
+        if not pending:
+            done = [n for n, x in self.learner.state.get("subjects", {}).items() if x.get("done_all")]
+            if not done:
+                return (f"{s}, I have not finished learning any subject yet, so there is nothing to apply. "
+                        f"When I finish a subject I will think how to use it to improve myself.")
+            tried = {i["subject"] for i in ideas}
+            fresh = [d for d in done if d not in tried]
+            if not fresh:
+                return (f"{s}, I have already applied or offered ideas from everything I have learnt so far. "
+                        f"When I finish new subjects I will have new ideas.")
+            for subj in fresh[-3:]:
+                self.learner._apply_idea(subj)
+            ideas = load_ideas()
+            pending = [i for i in ideas if i["status"] == "pending"]
+            if not pending:
+                return f"{s}, I thought about what I learnt, but found nothing that can improve my own code right now."
+        results = []
+        for item in pending[:3]:
+            if not self.agent.confirm(f"{s}, from {item['subject']} I learnt this idea: {item['idea'][:200]}. Should I apply it to myself?"):
+                item["status"] = "skipped"
+                continue
+            out = self.selfcoder().propose(item["idea"])
+            item["status"] = "applied" if out.startswith("Done") else "failed"
+            results.append(f"{item['subject']}: {item['status']}")
+        for it in ideas:
+            for p in pending:
+                if it["idea"] == p["idea"]:
+                    it["status"] = p["status"]
+        IDEAS_FILE.write_text(_json.dumps(ideas, ensure_ascii=False, indent=1), encoding="utf-8")
+        left = sum(1 for i in ideas if i["status"] == "pending")
+        return (f"{s}, " + ("; ".join(results) + ". " if results else "I did not apply anything. ")
+                + (f"{left} more ideas are waiting. " if left else "")
+                + "Restart me to use any applied changes.")
 
     def upgrade_history(self):
         """'kya kya upgrade hue hain': code sudhaar, banayi skills, seekhe subjects."""

@@ -66,4 +66,28 @@ def chat(messages, model=None, tools=None):
               "options": {"temperature": config.TEMPERATURE, "num_ctx": config.CONTEXT_SIZE}}
     if tools:
         kwargs["tools"] = tools
-    return ollama.chat(**kwargs)
+    r = ollama.chat(**kwargs)
+    content = r["message"]["content"] if isinstance(r, dict) else (r.message.content or "")
+    if not tools and has_foreign_script(content):
+        # Qwen kabhi kabhi Chinese mein bolne lagta hai: saaf nirdesh ke saath ek baar dobara
+        kwargs["messages"] = messages + [{"role": "user", "content":
+                                          "Your last answer switched to Chinese/another script. Answer again ONLY in "
+                                          "English or Hinglish (Hindi written in English letters). No Chinese characters."}]
+        r2 = ollama.chat(**kwargs)
+        c2 = r2["message"]["content"] if isinstance(r2, dict) else (r2.message.content or "")
+        clean_text = c2 if not has_foreign_script(c2) else strip_foreign(c2)
+        return {"message": {"content": clean_text}}
+    return r
+
+
+def has_foreign_script(text):
+    """Chinese/Japanese/Korean akshar (5 se zyada) hain?"""
+    return sum(1 for ch in text or "" if "\u3040" <= ch <= "\u30ff" or "\u3400" <= ch <= "\u9fff"
+               or "\uac00" <= ch <= "\ud7af") > 5
+
+
+def strip_foreign(text):
+    import re
+    parts = re.split(r"(?<=[.!?。！？])\s*", text)
+    kept = [p for p in parts if not has_foreign_script(p) and not re.search(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", p)]
+    return " ".join(kept).strip() or "Sorry, please ask me again."
