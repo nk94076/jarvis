@@ -295,6 +295,8 @@ def fix_speech(text):
 def is_stop(text):
     """Sirf chhota "stop/ruko/bas" jaisa vaakya (lambe vaakya jaise "notepad band karo" stop nahi hain)."""
     words = re.findall(r"[a-z]+", text.lower())
+    if words and all(w in config.STOP_WORDS or w in ("ok", "okay", "please", "jarvis") for w in words):
+        return True                                  # "stop stop stop stop" bhi
     if not words or len(words) > 3:
         return False
     return bool(set(words) & set(config.STOP_WORDS)) or " ".join(words) in config.STOP_PHRASES

@@ -191,7 +191,11 @@ class Skills:
         if re.search(r"(core|apna|apne|khud ka|khud ke|tumhara)\s+(core\s+)?code\s+(ko\s+)?(check|review|dekho|padho|analy[sz]e)", cmd) \
                 and not re.search(r"smart|sikh|seekh", cmd):
             return self.self_review()
-        if re.search(r"(khud ko|apne aap ko|yourself)\s+(smart|smarter|intelligent|behtar|better)|smart bano|smarter bano", cmd):
+        if re.search(r"(kya kya|kitne|which|what)\s+(upgrade|upgrades|sudhaar|improvement)|upgrade (list|history)|"
+                     r"kya (upgrade|seekha|badla) (hua|hue|kiya)|changelog", cmd):
+            return self.upgrade_history()
+        if re.search(r"(khud ko|apne aap ko|yourself)\s+(smart|smarter|intelligent|behtar|better)|smart bano|smarter bano|"
+                     r"internet.{0,60}(upgrade|smart|improve|behtar)", cmd):
             return self.smart_upgrade(cmd)
         if re.search(r"apni kamiyan|kamiyan door|self.?upgrade engine|fix your gaps|upgrade your (skills|capabilities)|"
                      r"jo nahi kar paye (wo|woh) seekho", cmd):
@@ -230,6 +234,23 @@ class Skills:
                     f"could not do, and check and improve my own code with your permission. Just say: internet se "
                     f"seekho aur khud ko smart banao.")
         return None
+
+    def upgrade_history(self):
+        """'kya kya upgrade hue hain': code sudhaar, banayi skills, seekhe subjects."""
+        s = config.USER_NAME
+        parts = []
+        root = selfcode.WORK / "backups"
+        ups = [(b / "summary.txt").read_text(encoding="utf-8") for b in sorted(root.iterdir())
+               if (b / "summary.txt").exists()] if root.exists() else []
+        parts.append(f"{len(ups)} code upgrades" + (f": {'; '.join(ups[-3:])}" if ups else ""))
+        sk = self.plugins.list()
+        parts.append(f"{len(sk)} new skills" + (f": {', '.join(m['name'].replace('_', ' ') for m in sk[-4:])}" if sk else ""))
+        subj = [n for n, x in self.learner.state.get("subjects", {}).items() if x.get("done_all")]
+        parts.append(f"{len(subj)} subjects learnt" + (f": {', '.join(subj[-5:])}" if subj else ""))
+        q = self.learner.state.get("queue", [])
+        if q:
+            parts.append(f"now learning {', '.join(q[:3])}")
+        return f"{s}, my upgrades so far: " + ". ".join(parts) + ". My version is " + config.VERSION + "."
 
     def self_review(self):
         """Apna code check karo -> sabse zaroori chhota sudhaar chuno -> (permission ke saath) lagao."""
@@ -270,6 +291,14 @@ class Skills:
         lessons = selfimprove.lessons_for("self code upgrade skill goal step failed", limit=3)
         d, _ = selfimprove.summary()
         recent = [f["error"] for f in d["failures"][-5:]]
+        if re.search(r"internet|research|news|trend|latest|naye features|analytics", cmd) and internet.internet_hai():
+            out = self.agent.call("deep_research", {"topic": "latest features and ideas for personal AI voice assistants"})
+            if out.startswith("REPORT SAVED"):
+                ideas = agent_mod.llm("From this research, list 3 short new feature ideas a Windows voice assistant could add, "
+                                      "one line each, spoken style:\n" + out[:5000])
+                self.knowledge.add("ideas: new assistant features", out.split("\n\n", 1)[-1][:4000], [])
+                report.append("I researched the latest assistant features. Ideas I could add: " + " ".join(ideas.split())[:350]
+                              + ". Say 'ek skill banao jo ...' for any of them.")
         if re.search(r"\bcode\b", cmd) or not (lessons or recent):
             report.append(self.self_review())             # "core code check karo ... smart banao"
         elif self.agent.confirm(f"{s}, should I also read my own code and try to fix my most common mistake?"):
@@ -468,6 +497,9 @@ class Skills:
                 "('apni kamiyan door karo'), and safely improve your own code after the user approves "
                 "('apna code upgrade karo taaki ...', 'internet se seekho aur khud ko smart banao'). "
                 f"Learning status right now: {self.learner.status()} "
+                "Your name comes from J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's AI assistant "
+                "in the Iron Man movies, voiced by Paul Bettany; it later became Vision. If the user asks about "
+                "Tony Stark's JARVIS ('uska AI Jarvis'), answer about that movie AI, not about the user. "
                 "You are male: in Hindi/Hinglish always use masculine forms (kar sakta hoon, main karta hoon). "
                 "Learning runs in the background only while JARVIS is running. "
                 "If the user closes JARVIS, learning pauses and automatically continues from the same chapter "

@@ -150,6 +150,8 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
         cmd = wake_word_ke_baad(text)
         if not active:
             if cmd is None:
+                print('   (standby: pehle "Hey Jarvis" bolo, phir command)')
+                hud.post("log", "Standby: say Hey Jarvis first")
                 continue                        # standby: sirf "Hey Jarvis" par jaago
             active = True
             last_talk = time.time()

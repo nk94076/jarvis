@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "9.3"
+VERSION = "9.4"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
