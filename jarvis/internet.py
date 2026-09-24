@@ -74,3 +74,16 @@ def mausam_hud(shehar=""):
     raw = requests.get(f"https://wttr.in/{shehar}?format=%t|%C|%l", timeout=8).text.strip()
     temp, cond, place = (raw.split("|") + ["", "", ""])[:3]
     return temp.replace("+", ""), f"{place.split(',')[0].strip()} · {cond.strip()}"
+
+
+def weather_full(shehar=""):
+    """HUD ke WEATHER panel ke liye poori jaankari (wttr.in, free)."""
+    import requests
+    d = requests.get(f"https://wttr.in/{shehar}?format=j1", timeout=10).json()
+    cur = d["current_condition"][0]
+    area = d.get("nearest_area", [{}])[0]
+    name = lambda k: (area.get(k) or [{"value": ""}])[0]["value"]  # noqa: E731
+    place = ", ".join(p for p in (name("areaName"), name("region"), name("country")) if p)
+    return {"temp": f"{cur['temp_C']}°C", "feels": f"{cur['FeelsLikeC']}°C", "humidity": f"{cur['humidity']}%",
+            "wind": f"{cur['windspeedKmph']} km/h", "visibility": f"{cur['visibility']} km",
+            "desc": cur["weatherDesc"][0]["value"], "place": place}

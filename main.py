@@ -64,6 +64,34 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
     skills.agent.stop = interrupt
     skills.orchestrator.progress = lambda text: hud.post("log", "🎯 " + text)
+
+    def hud_data():
+        """INTELLIGENCE / ANALYTICS / SETTINGS tabs ke liye."""
+        from jarvis import selfimprove, security
+        from jarvis.agent import TOOLS
+        d, rate = selfimprove.summary()
+        st = skills.learner.state
+        goals = skills.orchestrator._load()
+        return {"brain_mode": config.BRAIN_MODE, "safe_mode": security.safe_mode(),
+                "learning": ", ".join(st.get("queue", [])[:3]) or "nothing",
+                "subjects": ", ".join(n for n, x in st.get("subjects", {}).items() if x.get("done_all"))[:60] or "-",
+                "skills": str(len(skills.plugins.list())), "tools": str(len(TOOLS)),
+                "goal": (f"{goals[-1]['goal'][:40]} ({goals[-1]['status']})" if goals else "-"),
+                "total": d["total"], "rate": f"{rate:.0f}%", "failed": d["failed"], "gaps": len(d["gaps"]),
+                "by_day": d["by_day"]}
+
+    if hasattr(hud, "provider"):
+        from jarvis import security, selfimprove as _si
+        hud.provider = hud_data
+
+        def set_mode(m):
+            config.BRAIN_MODE = m
+            hud.post("info", {"brain": brain_label()})
+        hud.actions.update({
+            "safe_mode": lambda: security.set_safe_mode(not security.safe_mode()),
+            "brain_local": lambda: set_mode("local"), "brain_auto": lambda: set_mode("auto"),
+            "brain_cloud": lambda: set_mode("cloud"), "learning_stop": skills.learner.stop,
+            "dashboard": lambda: _si.dashboard(skills.learner, skills.knowledge, skills.plugins)})
     from jarvis.scheduler import Scheduler, notify
     skills.scheduler = Scheduler(skills.handle, lambda msg: (hud.post("log", "⏰ " + msg[:50]), voice.bolo(msg)))
     if getattr(config, "PHONE_APP", True):
@@ -93,7 +121,7 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
                       "learnt": knowledge_info()})
     if online:
         try:
-            hud.post("weather", internet.mausam_hud())
+            hud.post("weather", internet.weather_full())
         except Exception:
             pass
     voice.bolo(f"Hello {s}, JARVIS is online. Say Hey Jarvis to wake me up."

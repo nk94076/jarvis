@@ -4,7 +4,7 @@ Aapka personal voice assistant, Iron Man ke JARVIS jaisa.
 
 ![JARVIS HUD](docs/hud.png)
 
-- **Iron Man HUD:** beech mein arc reactor heartbeat ki tarah dhadakta hai, saath mein ghadi, CPU/RAM/Disk, weather aur activity log.
+- **Iron Man HUD (v9):** tabs HOME / SYSTEMS / INTELLIGENCE / ANALYTICS / SETTINGS, date + ghadi, SYSTEM STATUS rings + live graphs, dhadakta arc reactor, WEATHER (temp, humidity, hawa, visibility), ACTIVITY LOG, SYSTEM PERFORMANCE graph, helmet character aur mic button (click karke type karo). SETTINGS tab mein safe mode aur brain mode ke button.
 - **"Hey Jarvis" se ek baar jagao:** uske baad naam liye bina seedha baat karo. 90 second chup rahoge ya "so jao" bologe to standby.
 - **Kaam par report:** open/play/learn/search jaise kaam par "Starting the task, Sir" aur "Task completed, Sir". Baatcheet par nahi.
 - **Indian English awaaz:** online ho to `en-IN-PrabhatNeural`, offline ho to computer ki Indian English awaaz.

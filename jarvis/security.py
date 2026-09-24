@@ -15,6 +15,10 @@ DEFAULT = {"low": "allow", "medium": "allow", "high": "ask"}
 _safe_mode = False
 
 
+def safe_mode():
+    return _safe_mode
+
+
 def set_safe_mode(on):
     global _safe_mode
     _safe_mode = on
