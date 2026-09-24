@@ -306,9 +306,12 @@ class Skills:
         report = self.agent.call("check_project", {"repo": "jarvis"})
         if not report.startswith("REPORT SAVED"):
             return report
-        idea = agent_mod.llm("This is a code check report of JARVIS, a voice assistant. Pick the ONE most valuable, "
-                             "small and safe improvement and write it as one clear sentence (what to change and "
-                             "where). If there is nothing important, reply exactly: NOTHING.\n\n" + report[:6000]).strip()
+        if "confirmed bug" not in report or ": 0 confirmed" in report:      # sirf sabit bugs par hi code badlo
+            return (f"{s}, I checked my core code. No confirmed bugs, so I am not changing anything. "
+                    f"The report is in Documents, JARVIS Reports.")
+        idea = agent_mod.llm("This is a code check report of JARVIS, a voice assistant. Pick the ONE most serious "
+                             "CONFIRMED bug and write its fix as one clear sentence (what to change and where). "
+                             "If there is nothing important, reply exactly: NOTHING.\n\n" + report[:6000]).strip()
         if not idea or idea.upper().startswith("NOTHING"):
             return f"{s}, I checked my core code. No syntax errors and nothing important to fix. The report is in Documents, JARVIS Reports."
         if not self.agent.confirm(f"{s}, I checked my code. The most useful fix is: {idea[:200]}. Should I try it?"):

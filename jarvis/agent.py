@@ -298,12 +298,59 @@ def t_git_diff(repo):
 
 
 @tool("review_code", "Code file ko bugs ke liye check karo aur sudhaar batao", {"path": ("string", "file")})
-def t_review_code(path):
+def review_findings(path):
+    """Code review, par sirf SABIT bugs: AI ko har bug ki asli line hubahu quote karni hoti hai;
+    quote file mein na mile to wo 'bug' AI ki kalpana maan kar hata diya jaata hai. (verified, rejected)"""
     p = resolve(path)
     code = p.read_text(encoding="utf-8", errors="ignore")
-    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(code.splitlines()[:400]))
-    return llm(f"File {p.name} ko bugs ke liye review karo. Har bug: line number, kya galat hai, fix kaise karein. "
-               f"Sirf asli bugs, chhota rakho. Bug na mile to 'No obvious bugs' likho.\n\n{numbered}")
+    lines = code.splitlines()
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines[:400]))
+    raw = llm(f"Review {p.name} for REAL bugs only: code that crashes, gives wrong results, or has a security hole. "
+              "NOT style, naming, performance, 'could be better' or missing features. Before reporting, re-read the "
+              "surrounding lines: imports, earlier checks and definitions often already exist. Most files have 0-2 real bugs.\n"
+              'Reply ONLY JSON: [{"line": 12, "code": "the exact buggy line copied character by character", '
+              '"bug": "what goes wrong at runtime", "fix": "how to fix"}]  or []  if there are no real bugs.\n\n' + numbered)
+    m = re.search(r"\[.*\]", raw, re.S)
+    try:
+        items = json.loads(m.group()) if m else []
+    except ValueError:
+        items = []
+    verified, rejected = [], []
+    for it in items if isinstance(items, list) else []:
+        quote = str(it.get("code", "")).strip()
+        idx = next((i for i, ln in enumerate(lines) if len(quote) >= 6 and (quote in ln or ln.strip() == quote)), None)
+        if idx is None or not _skeptic_ok(p.name, lines, idx, it):
+            rejected.append(it)
+        else:
+            verified.append(it)
+    return verified, rejected
+
+
+def _skeptic_ok(name, lines, idx, it):
+    """Doosri jaanch: line asli hai, par kya bug bhi asli hai? Aas-paas ka code dikha kar AI se bahas karwao."""
+    ctx = "\n".join(f"{i + 1}: {lines[i]}" for i in range(max(0, idx - 25), min(len(lines), idx + 15)))
+    head = "\n".join(ln for ln in lines[:40] if ln.startswith(("import ", "from ")))
+    verdict = llm(f"A reviewer claims a bug in {name} line {idx + 1}: {it.get('bug')} (suggested fix: {it.get('fix')}).\n"
+                  "Be a strict skeptic. The code runs on Windows and currently works. Only answer REAL if you can name the "
+                  "exact input that makes it crash or give a wrong result, and the suggested fix would not break anything. "
+                  "Style, 'better practice', or a fix that changes working behaviour = FALSE.\n"
+                  f"Imports:\n{head}\n\nCode:\n{ctx}\n\nReply with one word: REAL or FALSE.")
+    return "REAL" in (verdict or "").upper() and "FALSE" not in (verdict or "").upper()
+
+
+def t_review_code(path):
+    verified, rejected = review_findings(path)
+    name = resolve(path).name
+    if not verified:
+        note = f" ({len(rejected)} claimed bugs were rejected as unproven.)" \
+            if rejected else ""
+        return f"{name}: No confirmed bugs.{note}"
+    out = [f"{name}: {len(verified)} confirmed bug(s)."]
+    for it in verified:
+        out.append(f"- line {it.get('line')}: `{str(it.get('code'))[:120]}` -> {it.get('bug')} | fix: {it.get('fix')}")
+    if rejected:
+        out.append(f"({len(rejected)} other claims rejected: quoted code not found or the bug did not hold up on a second check.)")
+    return "\n".join(out)
 
 
 @tool("check_project", "Poora project check karo: git status, naye changes, syntax errors, code review, aur report",
