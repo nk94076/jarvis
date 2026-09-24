@@ -318,6 +318,8 @@ class Skills:
         """'internet se seekho aur khud ko smart banao': gyaan taaza + kamiyon ki skills + apne code ka ek sudhaar."""
         s = config.USER_NAME
         report = []
+        no_relearn = re.search(r"(relearn|dobara|phir se|re-learn|refresh)\w*\s+(mat|mt|na|nahi|nahin|don't|dont)|"
+                               r"(mat|mt|na|nahi|don't|dont)\s+(relearn|dobara seekh|refresh)", cmd)
         topic = re.search(r"(.+?)\s+(?:ke bare mein|ke baare mein|about)\b", cmd)
         topic = subject_from(topic.group(1)) if topic else ""
         if topic and len(topic.split()) <= 4 and topic not in ("khud", "apne"):
@@ -325,11 +327,12 @@ class Skills:
         elif self.learner.state.get("queue"):
             self.learner.resume()
             report.append(f"I am already learning {', '.join(self.learner.state['queue'][:3])} from the internet.")
-        elif self.learner.state.get("subjects"):
+        elif self.learner.state.get("subjects") and not no_relearn and \
+                re.search(r"refresh|taaza|tazaa|latest|update (knowledge|gyaan)|dobara seekho|relearn", cmd):
             self.learner.upgrade()
             report.append("I am refreshing everything I have learnt with the latest information from the internet.")
-        else:
-            report.append("I have not learnt any subject yet, so tell me a topic to learn, like: learn python.")
+        elif no_relearn:
+            report.append("Okay, I will not re-learn old subjects.")
         if selfupgrade.gaps():
             report.append(selfupgrade.run(self.plugins, self.agent.confirm, self.agent.progress))
         lessons = selfimprove.lessons_for("self code upgrade skill goal step failed", limit=3)
@@ -349,7 +352,8 @@ class Skills:
             idea = agent_mod.llm("From these recent problems of a voice assistant, write ONE small, concrete code "
                                  "improvement request (one sentence):\n" + "\n".join(lessons + recent))
             report.append(self.selfcoder().propose(idea.strip()[:300]))
-        return f"{s}, " + " ".join(report)
+        return f"{s}, " + " ".join(re.sub(rf"^(sorry |okay |done )?{re.escape(s)},?\s*", lambda m: (m.group(1) or "").capitalize(), r)
+                                   for r in report)
 
     def phase2(self, cmd):
         """Gmail, Calendar, GitHub, Git, Database, Server, Smart home, Vision, Coding, Schedules, Cloud brain."""

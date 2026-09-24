@@ -88,6 +88,8 @@ class Voice:
         self.typed = typed          # HUD ke type box se aane wale commands
         self.mic_ok = True
         self.paused = False
+        self.spoken = []                 # haal mein JARVIS ne kya bola (apni awaaz pehchanne ke liye)
+        self.speaking_until = 0.0
         self._noise = None
         self.on_level = lambda level: None
         self.on_say = on_say or (lambda text: None)
@@ -122,6 +124,9 @@ class Voice:
         text = clean(text)
         print(f"JARVIS: {text}")
         self.on_say(text)
+        self.spoken.append((time.time(), text.lower()))
+        self.spoken = self.spoken[-8:]
+        self.speaking_until = float("inf")               # bolte waqt mic ki awaaz nazarandaz
         try:
             if self.text_mode:
                 return
@@ -140,6 +145,7 @@ class Voice:
                     print(f"[voice] pyttsx3 error: {e}")
             windows_speak(text, self.stop)
         finally:
+            self.speaking_until = time.time() + 0.6      # goonj khatam hone tak
             self.on_said()
 
     def _edge_tts(self, text):
@@ -228,9 +234,26 @@ class Voice:
                 if silent >= config.MIC_PAUSE * 10 or len(frames) > phrase_limit * 10:
                     return b"".join(frames)
 
+    def is_echo(self, text):
+        """Mic ne JARVIS ki apni awaaz suni? (haal ke bole vaakya se milti-julti)"""
+        import difflib
+        words = set(re.findall(r"[a-z]+", text.lower()))
+        for when, said in self.spoken:
+            if time.time() - when > 90 or not words:
+                continue
+            said_words = set(re.findall(r"[a-z]+", said))
+            overlap = len(words & said_words) / len(words)
+            if (overlap >= 0.7 and len(words) >= 3) or difflib.SequenceMatcher(None, text.lower(), said).find_longest_match(
+                    0, len(text), 0, len(said)).size >= 25:
+                return True
+        return False
+
     def _listen(self, online):
         try:
+            t0 = time.time()
             raw = self._record()
+            if t0 < self.speaking_until:                 # ye recording JARVIS ke bolte waqt shuru hui thi
+                return None
         except Exception as e:
             print(f"[voice] Mic nahi mila ({e}). HUD ke box mein type karo.")
             self.mic_ok = False
@@ -250,6 +273,9 @@ class Voice:
             text = json.loads(self.vosk.FinalResult()).get("text", "")
         if text:
             text = fix_speech(text.lower())
+            if self.is_echo(text):
+                print(f"   (apni awaaz suni, chhod di: {text[:50]})")
+                return None
             print(f"Aap: {text}")
             return text
         return None
