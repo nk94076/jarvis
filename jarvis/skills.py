@@ -183,11 +183,14 @@ class Skills:
         if re.search(r"(self|code) upgrade undo|undo (self|code) upgrade|pichla code wapas", cmd):
             return selfcode.undo()
         m = re.search(r"(?:apna|apne|your|khud ka|khud ke)\s+code\s+(?:ko\s+)?(?:upgrade|improve|sudhaar|sudhar|better|update|behtar)\w*"
-                      r"\s*(?:karo|kar do|karke)?\s*(?:taaki|so that|ki|:)?\s*(.*)", cmd)
+                      r"\s*(?:karo|kar do|karke)?\s*(?:taaki|taki|jisse|jis se|jisase|so that|ki|:)?\s*(.*)", cmd)
         if m:
             if len(m.group(1).split()) < 2:
-                return f"{s}, what should I improve in my code? Say for example: apna code upgrade karo taaki reminders hindi mein bhi samjhe."
+                return self.self_review()               # kya sudhaarna hai? khud check karke chuno
             return self.selfcoder().propose(m.group(1))
+        if re.search(r"(core|apna|apne|khud ka|khud ke|tumhara)\s+(core\s+)?code\s+(ko\s+)?(check|review|dekho|padho|analy[sz]e)", cmd) \
+                and not re.search(r"smart|sikh|seekh", cmd):
+            return self.self_review()
         if re.search(r"(khud ko|apne aap ko|yourself)\s+(smart|smarter|intelligent|behtar|better)|smart bano|smarter bano", cmd):
             return self.smart_upgrade(cmd)
         if re.search(r"apni kamiyan|kamiyan door|self.?upgrade engine|fix your gaps|upgrade your (skills|capabilities)|"
@@ -209,6 +212,39 @@ class Skills:
         if m and not re.search(r"search", cmd):
             return self.orchestrator.agent.run(m.group(1), set(agent_mod.CATEGORIES.get("browser", [])))
         return None
+
+    def capability_answer(self, cmd):
+        """'kya tum internet access kar sakte ho' jaise sawaal: jawab code se (AI kabhi galat bol deta tha)."""
+        s = config.USER_NAME
+        can = re.search(r"(kar )?(sakte|sakoge|sakta) ho|can you|are you able|kya tum|kya aap", cmd)
+        if not can or re.search(r"search|dhundo|dhoondo|kholo|open|play|chalao|bhejo|send|likho|batao|bataiye|"
+                                r"weather|news|price", cmd):
+            return None                                   # ye asal mein kaam maanga hai, sirf sawaal nahi
+        if re.search(r"\b(internet|net|online|web|google)\b", cmd):
+            status = "and I am connected right now" if internet.internet_hai() else "but right now there is no internet connection"
+            return (f"Yes {s}, I can use the internet, {status}. I can search Google, read websites, do research, get "
+                    f"news and weather, learn subjects, and control a real browser.")
+        if re.search(r"(khud|apne aap|yourself|self).{0,40}(sikh|seekh|learn|upgrade|smart|improve)|self learning|"
+                     r"(sikh|seekh|learn).{0,30}(khud|apne aap)", cmd):
+            return (f"Yes {s}. I can learn subjects from the internet and test myself, build new skills for things I "
+                    f"could not do, and check and improve my own code with your permission. Just say: internet se "
+                    f"seekho aur khud ko smart banao.")
+        return None
+
+    def self_review(self):
+        """Apna code check karo -> sabse zaroori chhota sudhaar chuno -> (permission ke saath) lagao."""
+        s = config.USER_NAME
+        report = self.agent.call("check_project", {"repo": "jarvis"})
+        if not report.startswith("REPORT SAVED"):
+            return report
+        idea = agent_mod.llm("This is a code check report of JARVIS, a voice assistant. Pick the ONE most valuable, "
+                             "small and safe improvement and write it as one clear sentence (what to change and "
+                             "where). If there is nothing important, reply exactly: NOTHING.\n\n" + report[:6000]).strip()
+        if not idea or idea.upper().startswith("NOTHING"):
+            return f"{s}, I checked my core code. No syntax errors and nothing important to fix. The report is in Documents, JARVIS Reports."
+        if not self.agent.confirm(f"{s}, I checked my code. The most useful fix is: {idea[:200]}. Should I try it?"):
+            return f"Okay {s}. I checked my code and saved the report in Documents, JARVIS Reports. I did not change anything."
+        return self.selfcoder().propose(idea[:300])
 
     def selfcoder(self):
         return selfcode.SelfCoder(agent_mod.llm, self.agent.confirm, self.agent.progress)
@@ -234,8 +270,9 @@ class Skills:
         lessons = selfimprove.lessons_for("self code upgrade skill goal step failed", limit=3)
         d, _ = selfimprove.summary()
         recent = [f["error"] for f in d["failures"][-5:]]
-        if (lessons or recent) and self.agent.confirm(f"{s}, should I also read my own code and try to fix my most "
-                                                      f"common mistake?"):
+        if re.search(r"\bcode\b", cmd) or not (lessons or recent):
+            report.append(self.self_review())             # "core code check karo ... smart banao"
+        elif self.agent.confirm(f"{s}, should I also read my own code and try to fix my most common mistake?"):
             idea = agent_mod.llm("From these recent problems of a voice assistant, write ONE small, concrete code "
                                  "improvement request (one sentence):\n" + "\n".join(lessons + recent))
             report.append(self.selfcoder().propose(idea.strip()[:300]))
@@ -443,7 +480,7 @@ class Skills:
         s = config.USER_NAME
         if any(w in cmd for w in ["bye", "exit", "goodbye"]) or cmd.strip() in ("band ho jao", "jarvis band ho jao"):
             return None
-        helped = extra.help_text(cmd, s)            # "what can you do" sawaal hai, par jawab skills list hai
+        helped = extra.help_text(cmd, s) or self.capability_answer(cmd)   # apne baare mein pakke jawab
         if helped:
             return helped
         # sawaal jaisa vaakya? pehle samjho ki ye order hai ya sawaal (koi adhoora kaam pending na ho tab)
