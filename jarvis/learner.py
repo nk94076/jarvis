@@ -53,6 +53,16 @@ def subject_from(cmd):
     return " ".join(text.split())
 
 
+def keep_awake(on):
+    """Windows: learning chalte waqt system sleep roko (display off ho sakta hai)."""
+    import sys
+    if sys.platform != "win32":
+        return
+    import ctypes
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+    ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | (ES_SYSTEM_REQUIRED if on else 0))
+
+
 class Learner:
     def __init__(self, knowledge, llm):
         self.knowledge = knowledge
@@ -167,6 +177,13 @@ class Learner:
         self.thread.start()
 
     def _worker(self):
+        keep_awake(True)                         # seekhte waqt PC sleep mein na jaye (screen band ho sakti hai)
+        try:
+            self._work()
+        finally:
+            keep_awake(False)
+
+    def _work(self):
         while self.state["queue"] and not self.stop_flag.is_set():
             if not internet.internet_hai():
                 time.sleep(30)                  # internet aane ka intezaar
