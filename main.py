@@ -63,6 +63,7 @@ def jarvis_loop(hud, text_mode, stop, typed=None, interrupt=None):
     skills.agent.confirm = confirm
     skills.agent.progress = lambda text: hud.post("log", "⚙ " + text)
     skills.agent.stop = interrupt
+    skills.orchestrator.progress = lambda text: hud.post("log", "🎯 " + text)
     from jarvis.scheduler import Scheduler, notify
     skills.scheduler = Scheduler(skills.handle, lambda msg: (hud.post("log", "⏰ " + msg[:50]), voice.bolo(msg)))
     if getattr(config, "PHONE_APP", True):

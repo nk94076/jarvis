@@ -50,12 +50,10 @@ def run_file(path, lang=None, stdin="", timeout=30):
         cmd = [a.replace("{f}", str(path)).replace("{e}", exe).replace("{d}", str(path.parent)) for a in step]
         if not shutil.which(cmd[0]) and not Path(cmd[0]).exists():
             return False, f"'{cmd[0]}' is not installed, so I cannot run {lang} code on this PC."
-        try:
-            r = subprocess.run(cmd, cwd=path.parent, input=stdin, capture_output=True, text=True, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return False, f"TIMEOUT after {timeout} seconds"
-        out += r.stdout + r.stderr
-        if r.returncode != 0:
+        from . import sandbox
+        code, text = sandbox.run(cmd, cwd=str(path.parent), stdin=stdin, timeout=timeout)
+        out += text
+        if code != 0:
             return False, out[-2500:]
     return True, out[-2500:]
 

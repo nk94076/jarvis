@@ -118,3 +118,28 @@ section{{margin-top:26px}} li{{margin:4px 0}}</style></head><body>
     if open_browser:
         webbrowser.open(DASHBOARD.as_uri())
     return DASHBOARD
+
+
+# ---------------- Failure memory -> lessons ----------------
+LESSONS_FILE = config.DATA_DIR / "lessons.json"
+
+
+def add_lesson(task, lesson):
+    """Galti se seekha sabak, taaki agli baar wahi galti na ho."""
+    try:
+        items = json.loads(LESSONS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        items = []
+    items = (items + [{"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "task": task[:200], "lesson": lesson[:300]}])[-300:]
+    LESSONS_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def lessons_for(task, limit=4):
+    """Is kaam se milte-julte pichhle sabak (plan banate waqt AI ko diye jaate hain)."""
+    try:
+        items = json.loads(LESSONS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    words = set(w for w in task.lower().split() if len(w) > 3)
+    scored = sorted(((len(words & set(i["task"].lower().split())), i) for i in items), key=lambda x: -x[0])
+    return [i["lesson"] for n, i in scored if n][:limit]

@@ -18,7 +18,7 @@ def main():
     failed = []
     if not compileall.compile_dir(str(ROOT / "jarvis"), quiet=1) or not compileall.compile_file(str(ROOT / "main.py"), quiet=1):
         failed.append("syntax error in code")
-    for mod in ["config", "brain", "knowledge", "learner", "skills", "skills_extra", "agent", "pc", "builder",
+    for mod in ["security", "sandbox", "goals", "browser", "computer_use", "project", "versioning", "selfupgrade", "config", "brain", "knowledge", "learner", "skills", "skills_extra", "agent", "pc", "builder",
                 "plugins", "selfimprove", "audit", "internet", "voice", "integrations", "vision", "coder",
                 "scheduler", "remote", "llm_client", "cloud_claude", "cloud_gemini", "intent"]:
         try:
@@ -40,6 +40,11 @@ def main():
                     failed.append(f"'{cmd}' -> '{out[:80]}' (expected '{expect}')")
             except Exception as e:
                 failed.append(f"'{cmd}' crashed: {type(e).__name__}: {e}")
+    if "--skills" in sys.argv and not failed:
+        from jarvis.plugins import PluginManager
+        for name, ok, err in PluginManager(lambda p: "").run_all_tests():
+            if not ok:
+                failed.append(f"skill {name}: {err[-150:]}")
     if failed:
         print("SELFTEST FAILED:")
         for f in failed:

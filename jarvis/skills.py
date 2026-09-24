@@ -19,6 +19,11 @@ from . import intent
 from . import integrations as ig
 from . import vision
 from . import coder
+from . import goals as goals_mod
+from . import security
+from . import project as project_mod
+from . import versioning
+from . import selfupgrade
 
 APPS = {
     "notepad": {"Windows": "notepad", "Darwin": "open -a TextEdit", "Linux": "gedit"},
@@ -149,10 +154,50 @@ class Skills:
         agent_mod.AGENT = self.agent
         self.learner = Learner(knowledge, lambda prompt: agent_mod.llm(prompt))
         self.plugins = PluginManager(lambda prompt: agent_mod.llm(prompt))
+        self.plugins.on_change = lambda: agent_mod.registry_sync(self.plugins)
+        agent_mod.registry_sync(self.plugins)
+        self.orchestrator = goals_mod.Orchestrator(self.agent, agent_mod.llm)
         self.route = ""
         self.scheduler = None       # main.py lagata hai
         import threading
         self.lock = threading.RLock()   # awaaz, phone aur schedules ek saath na takrayein
+
+    def core_modules(self, cmd):
+        """Goal engine, tool registry, security, browser/computer-use, project understanding, self-upgrade, git."""
+        s = config.USER_NAME
+        llm = agent_mod.llm
+        if re.search(r"(goals?|last goal)\s+(dikhao|batao|status|list)|show (my )?goals|goal ka status", cmd):
+            return self.orchestrator.describe()
+        if re.search(r"(tools?|tool registry)\s+(list|dikhao|batao)|kaun se tools|what tools", cmd):
+            return agent_mod.registry_describe()
+        m = re.search(r"safe mode\s+(on|off|chalu|band)", cmd)
+        if m:
+            return security.set_safe_mode(m.group(1) in ("on", "chalu"))
+        if re.search(r"permissions? (batao|dikhao|list)|security (status|batao)|what can you do without asking", cmd):
+            return security.describe()
+        if re.search(r"skill history|skills? ka history|version history", cmd):
+            return versioning.history()
+        if re.search(r"undo (last )?skill change|skill change undo", cmd):
+            return versioning.undo_last()
+        if re.search(r"apni kamiyan|kamiyan door|self.?upgrade engine|fix your gaps|upgrade your (skills|capabilities)|"
+                     r"jo nahi kar paye (wo|woh) seekho", cmd):
+            return selfupgrade.run(self.plugins, self.agent.confirm, self.agent.progress)
+        m = re.search(r"(?:test|check)\s+(?:the\s+)?website\s+(\S+)|website\s+(\S+)\s+(?:ko\s+)?test|(\S+\.\S+)\s+(?:ko\s+)?test karo", cmd)
+        if m:
+            return self.agent.call("test_website", {"url": m.group(1) or m.group(2) or m.group(3)})
+        m = re.search(r"(?:computer use|khud (?:se )?(?:screen par |pc par )?karo|screen par khud)\s*[:,]?\s*(.+)", cmd)
+        if m:
+            return self.agent.call("computer_use", {"task": m.group(1)})
+        m = re.search(r"(?:understand|samjho|analy[sz]e)\s+(?:my\s+|the\s+)?(\w+)\s+project|(\w+)\s+project\s+(?:ko\s+)?samjho", cmd)
+        if m:
+            return project_mod.understand(m.group(1) or m.group(2), llm, self.knowledge)
+        m = re.search(r"(\w+)\s+project\s+(?:mein|me|in)\s+(.+)", cmd)
+        if m and m.group(1).lower() in config.PROJECTS and re.search(r"kahan|kaha|kaise|where|how|kya|which|what", cmd):
+            return project_mod.ask(m.group(1), m.group(2), llm)
+        m = re.search(r"(?:browser|chrome)\s+(?:agent|mein|me)\s+(.+)", cmd)
+        if m and not re.search(r"search", cmd):
+            return self.orchestrator.agent.run(m.group(1), set(agent_mod.CATEGORIES.get("browser", [])))
+        return None
 
     def phase2(self, cmd):
         """Gmail, Calendar, GitHub, Git, Database, Server, Smart home, Vision, Coding, Schedules, Cloud brain."""
@@ -267,7 +312,7 @@ class Skills:
         if re.search(r"dashboard", cmd):
             selfimprove.dashboard(self.learner, self.knowledge, self.plugins)
             return f"Opening my dashboard, {s}."
-        if re.search(r"kya improve|what should you improve|suggestion|kya nahi kar (sakte|paye|paya)|kami|gap analysis|"
+        if re.search(r"kya improve|what should you improve|suggestion|kya nahi kar (sakte|paye|paya)|kamiyan batao|\bkami\b|gap analysis|"
                      r"what can't you do|weakness", cmd):
             return selfimprove.suggestions()
         if re.search(r"(self test|apna test|quiz|test (do|lo|karo)|exam)", cmd) and not re.search(r"website|code|project", cmd):
@@ -390,8 +435,17 @@ class Skills:
             self.pending = "code_update"
             return f"{s}, should I download the latest version of my code? Your memory will stay safe. Say yes or no."
 
+        # ---- kai kaam ek saath -> Goal Engine + Orchestrator (pehle, taaki "test karo" jaise hisse na bhatkein) ----
+        if goals_mod.is_goal(cmd):
+            return self.orchestrator.run(cmd)
+
         # ---- self-upgrade: skill builder, self-test, dashboard, audit ----
         jawab = self.self_upgrade(cmd)
+        if jawab:
+            return jawab
+
+        # ---- core: goals, registry, security, browser, computer use, project, self-upgrade ----
+        jawab = self.core_modules(cmd)
         if jawab:
             return jawab
 

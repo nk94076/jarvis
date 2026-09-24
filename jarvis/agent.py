@@ -28,10 +28,26 @@ DANGEROUS = ["format ", "rm -rf", "rd /s", "rmdir /s", "del /s", "del /q", "disk
 TOOLS = {}
 
 
-def tool(name, description, params=None, risk="low"):
-    """Plugin system: @tool se koi bhi function JARVIS ka tool ban jata hai."""
+CATEGORIES = {  # Tool Registry: tool -> agent/category (orchestrator isi se sahi agent ke tools chunta hai)
+    "research": ["web_search", "read_webpage", "open_website", "deep_research"],
+    "pc": ["read_screen", "click_text", "mouse_click", "scroll", "press_keys", "type_text", "run_jarvis_command"],
+    "browser": ["browser_action", "open_website"],
+    "files": ["list_folder", "read_file", "write_file", "create_folder", "move_file", "delete_file", "organize_folder",
+              "read_pdf"],
+    "coder": ["run_terminal", "git_status", "git_pull", "git_diff", "review_code", "check_project", "read_file",
+              "write_file", "list_folder"],
+    "web": ["build_landing_page"],
+}
+
+
+def tool(name, description, params=None, risk="low", category=None):
+    """Tool Registry: @tool se koi bhi function JARVIS ka tool ban jata hai (risk + category ke saath)."""
     def wrap(fn):
-        TOOLS[name] = {"fn": fn, "risk": risk, "schema": {
+        if category:
+            CATEGORIES.setdefault(category, [])
+            if name not in CATEGORIES[category]:
+                CATEGORIES[category].append(name)
+        TOOLS[name] = {"fn": fn, "risk": risk, "description": description, "schema": {
             "type": "function",
             "function": {"name": name, "description": description, "parameters": {
                 "type": "object",
@@ -356,12 +372,11 @@ class Agent:
         t = TOOLS.get(name)
         if not t:
             return f"unknown tool {name}"
-        if t["risk"] == "high":
-            detail = ", ".join(f"{k}: {str(v)[:80]}" for k, v in args.items())
-            if not self.confirm(f"{config.USER_NAME}, should I {name.replace('_', ' ')}? {detail}"):
-                log(f"DENIED {name} {args}")
-                self.denied = True
-                return "USER DENIED this action. Do not retry it."
+        from . import security
+        if not security.check(name, t["risk"], args, self.confirm):
+            log(f"DENIED {name} {args}")
+            self.denied = True
+            return "USER DENIED this action. Do not retry it."
         self.progress(f"{name} {json.dumps(args, ensure_ascii=False)[:60]}")
         log(f"TOOL {name} {json.dumps(args, ensure_ascii=False)[:300]}")
         try:
@@ -374,12 +389,12 @@ class Agent:
         return result
 
     # ---------- multi-step agent loop ----------
-    def run(self, task):
+    def run(self, task, tool_names=None):
         s = config.USER_NAME
         messages = [{"role": "system", "content": AGENT_PROMPT.format(
             today=datetime.date.today(), projects=", ".join(config.PROJECTS) or "none")},
             {"role": "user", "content": task}]
-        schemas = [t["schema"] for t in TOOLS.values()]
+        schemas = [t["schema"] for n, t in TOOLS.items() if tool_names is None or n in tool_names]
         log(f"TASK {task}")
         for _ in range(config.AGENT_MAX_STEPS):
             if self.stop is not None and self.stop.is_set():
@@ -576,3 +591,93 @@ AGENT_WORDS = ["karo", "kar do", "and then", "phir", "uske baad", "check", "anal
 def needs_agent(cmd):
     """Lamba/multi-step kaam lagta hai? Tab Main Brain (tools ke saath) ko do."""
     return len(cmd.split()) >= 5 and any(w in cmd for w in AGENT_WORDS)
+
+
+def registry_sync(plugins):
+    """JARVIS ki khud banayi skills ko bhi tools bana do (Main Brain unhe use kar sake)."""
+    for name in [n for n in TOOLS if n.startswith("skill_")]:
+        TOOLS.pop(name)
+    for meta in plugins.list():
+        if not meta.get("enabled"):
+            continue
+        tname = "skill_" + meta["name"]
+        trigger = meta["triggers"][0] if meta["triggers"] else meta["name"]
+
+        def fn(request="", _t=trigger):
+            return plugins.match(f"{_t} {request}".strip()) or "skill gave no answer"
+        TOOLS[tname] = {"fn": fn, "risk": "medium", "description": meta.get("description", ""), "schema": {
+            "type": "function", "function": {"name": tname, "description": f"Custom skill: {meta.get('description', '')}",
+                                             "parameters": {"type": "object", "properties": {
+                                                 "request": {"type": "string", "description": "details"}},
+                                                 "required": []}}}}
+        CATEGORIES.setdefault("skills", [])
+        if tname not in CATEGORIES["skills"]:
+            CATEGORIES["skills"].append(tname)
+
+
+def registry_describe():
+    parts = [f"{cat}: {len(names)}" for cat, names in CATEGORIES.items() if names]
+    high = [n for n, t in TOOLS.items() if t["risk"] == "high"]
+    return (f"{config.USER_NAME}, I have {len(TOOLS)} tools. By agent: " + ", ".join(parts)
+            + f". High risk tools that need your permission: {', '.join(high)}.")
+
+
+# ======================= BROWSER AGENT (Playwright) =======================
+@tool("pw_open", "Real browser: open a URL or search words", {"url": ("string", "URL or search text")}, category="browser")
+def t_pw_open(url):
+    from . import browser
+    return browser.open_url(url)
+
+
+@tool("pw_click", "Real browser: click a button/link by its visible text", {"text": ("string", "button or link text")},
+      risk="medium", category="browser")
+def t_pw_click(text):
+    from . import browser
+    return browser.click(text)
+
+
+@tool("pw_fill", "Real browser: type a value into a form field (by label/placeholder/name)",
+      {"field": ("string", "field label"), "value": ("string", "text to type")}, risk="medium", category="browser")
+def t_pw_fill(field, value):
+    from . import browser
+    return browser.fill(field, value)
+
+
+@tool("pw_press", "Real browser: press a key like Enter or Tab", {"key": ("string", "key name")}, category="browser")
+def t_pw_press(key):
+    from . import browser
+    return browser.press(key)
+
+
+@tool("pw_read", "Real browser: read the text of the current page", category="browser")
+def t_pw_read():
+    from . import browser
+    return browser.read_text()
+
+
+@tool("pw_screenshot", "Real browser: save a full-page screenshot", category="browser")
+def t_pw_screenshot():
+    from . import browser
+    return browser.screenshot()
+
+
+@tool("test_website", "Test a website in a real browser: speed, JS errors, broken links/images, mobile layout",
+      {"url": ("string", "website")}, category="browser")
+def t_test_website(url):
+    from . import browser
+    return browser.test_website(url)
+
+
+# ======================= COMPUTER USE / PROJECT =======================
+@tool("computer_use", "Do a multi-step task on the PC screen by looking at it and clicking/typing",
+      {"task": ("string", "what to do on screen")}, risk="high", category="pc")
+def t_computer_use(task):
+    from . import computer_use
+    return computer_use.run(task, llm)
+
+
+@tool("understand_project", "Scan a code project and explain its structure, languages, frameworks and entry points",
+      {"project": ("string", "project name or path")}, category="coder")
+def t_understand_project(project):
+    from . import project as proj
+    return proj.understand(project, llm)

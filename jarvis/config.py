@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "7.0"
+VERSION = "8.0"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -53,6 +53,9 @@ DATABASES = {}                       # {"shop": "sqlite:///C:/data/shop.db", "cr
 SERVERS = {}                         # {"web": {"host": "1.2.3.4", "user": "root", "key": r"C:\Users\me\.ssh\id_rsa"}}
 HOME_ASSISTANT_URL = ""              # "http://homeassistant.local:8123"
 HOME_ASSISTANT_TOKEN = ""
+PERMISSIONS = {}                     # {"run_terminal": "deny", "pw_click": "ask", "web_search": "allow"}
+BROWSER_EXECUTABLE = ""              # khali = Playwright ka Chromium / aapka Chrome
+BROWSER_VISIBLE = True               # Browser Agent ka Chrome dikhe (False = chhupa hua)
 PHONE_APP = True                     # phone se JARVIS (ghar ka WiFi)
 PHONE_PORT = 8765
 PHONE_PIN = ""                       # khali = apne aap bana dega

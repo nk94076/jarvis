@@ -41,6 +41,9 @@ if defined FAILED (
     echo     Internet check karke setup.bat dobara chalao.
 )
 
+echo Browser Agent ke liye Chromium (lagbhag 150 MB)...
+python -m playwright install chromium >nul 2>&1
+
 echo Check kar raha hoon...
 python -c "import pyttsx3, speech_recognition, sounddevice, psutil, ollama; print('    [OK] Zaroori libraries ready hain')"
 

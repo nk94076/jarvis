@@ -89,6 +89,33 @@ JARVIS dobara chalao, to HUD mein **BRAIN: qwen2.5:14b** dikhega.
 - **CCTV:** `CAMERAS = {"gate": "rtsp://user:pass@192.168.1.20:554/stream1"}`
 - **Phone PIN badalna:** `PHONE_PIN = "4321"`; band karna: `PHONE_APP = False`
 
+## 🧠 Core Architecture (v8)
+
+```
+Voice / Phone / Type box
+   ↓
+Intent + Goal Engine ── order? sawaal? kai kaam ek saath (goal)?
+   ↓
+Agent Orchestrator ── plan (2-6 steps) → har step sahi agent → Self-Evaluation → retry → report
+   ↓                    ↑ Failure Memory ke sabak plan mein
+Tool Registry (36+ tools, category + risk) ── research · coder · browser · files · pc · web · skills
+   ↓
+Security Layer (allow / ask / deny, safe mode, audit log) → Sandbox (alag process, time limit, secrets hataye)
+```
+
+| Bolo | Module |
+|---|---|
+| `electric cars par research karo phir landing page banao aur usko test karo` | Goal Engine + Orchestrator + Self-Evaluation |
+| `goals dikhao` | Goal status / history |
+| `tools list dikhao` | Tool Registry |
+| `safe mode on karo`, `permissions batao` | Security layer (`PERMISSIONS` in my_settings) |
+| `test website adhookmedia.com` | Browser Agent (Playwright): speed, JS errors, broken links/images, mobile layout, screenshots |
+| `browser agent adhookmedia.com kholo aur contact form mein naam Naveen bharo` | Browser Agent (real Chrome: open, click, fill, read) |
+| `computer use: notepad kholo, hello likho aur save karo` | Computer-use Agent (screen padh kar khud kadam) |
+| `understand my jarvis project`, `jarvis project mein voice kahan handle hoti hai` | Project Understanding + Project Memory |
+| `apni kamiyan door karo` | Self-Upgrade Engine: gaps → skill → regression test → keep/rollback |
+| `skill history dikhao`, `undo last skill change` | Git version/branch system (Git install ho to) |
+
 ## 🔄 Update kaise karein
 
 - **`update.bat`** par double-click karo, ya JARVIS se bolo **"code update karo"**. Naya version download ho jayega.

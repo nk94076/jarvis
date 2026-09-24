@@ -58,17 +58,14 @@ print("@@RESULT@@" + json.dumps(out))
 
 def _sandbox(path, mode, cmd="", timeout=30):
     """Plugin ko alag Python process mein, temp folder mein, time limit ke saath chalao."""
+    from . import sandbox
     with tempfile.TemporaryDirectory() as tmp:
         runner = Path(tmp) / "runner.py"
         runner.write_text(RUNNER, encoding="utf-8")
-        try:
-            p = subprocess.run([sys.executable, str(runner), str(path), mode, cmd], cwd=tmp, capture_output=True,
-                               text=True, timeout=timeout, creationflags=0x08000000 if sys.platform == "win32" else 0)
-        except subprocess.TimeoutExpired:
-            return {"ok": False, "error": f"TIMEOUT: took more than {timeout} seconds"}
-    m = re.search(r"@@RESULT@@(.*)", p.stdout)
+        code, out = sandbox.run([sys.executable, str(runner), str(path), mode, cmd], cwd=tmp, timeout=timeout)
+    m = re.search(r"@@RESULT@@(.*)", out)
     if not m:
-        return {"ok": False, "error": (p.stderr or p.stdout)[-1500:] or "no output"}
+        return {"ok": False, "error": out[-1500:] or "no output"}
     return json.loads(m.group(1))
 
 
@@ -82,6 +79,7 @@ class PluginManager:
         self.llm = llm
         self.confirm = lambda q: False
         self.progress = lambda t: None
+        self.on_change = lambda: None            # Tool Registry sync
         SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ---------- store ----------
@@ -163,6 +161,9 @@ class PluginManager:
         self._save_meta({"name": name, "description": meta["description"], "triggers": meta["triggers"],
                          "version": 1, "versions": [1], "enabled": True, "request": request,
                          "created": datetime.now().strftime("%Y-%m-%d %H:%M"), "uses": 0, "fails": 0})
+        from . import versioning
+        versioning.commit(f"new skill {name}: {request[:60]}")
+        self.on_change()
         example = meta["triggers"][0]
         return (f"{s}, I have built and tested a new skill called {name.replace('_', ' ')}. All tests passed. "
                 f"Try saying: {example}.")
@@ -172,14 +173,19 @@ class PluginManager:
         meta = self.find(name)
         if not meta:
             return f"{s}, I could not find a skill named {name}."
+        from . import versioning
         base = (SKILLS_DIR / meta["name"] / f"v{meta['version']}.py").read_text(encoding="utf-8")
+        branch = versioning.start_branch(meta["name"])        # sudhaar alag branch par
         code, result = self._write_and_test(meta["request"], base_code=base, feedback=feedback or "make it better")
         if not code:
+            versioning.finish_branch(branch, keep=False)
             return f"Sorry {s}, the improved version failed its tests, so I kept version {meta['version']}."
         v = max(meta["versions"]) + 1
         (SKILLS_DIR / meta["name"] / f"v{v}.py").write_text(code, encoding="utf-8")
         meta.update(version=v, versions=meta["versions"] + [v], triggers=result["meta"]["triggers"])
         self._save_meta(meta)
+        versioning.finish_branch(branch, keep=True)
+        self.on_change()
         return f"{s}, {meta['name'].replace('_', ' ')} is upgraded to version {v} and all tests passed."
 
     def rollback(self, name):
@@ -198,6 +204,15 @@ class PluginManager:
         meta["enabled"] = on
         self._save_meta(meta)
         return f"{meta['name'].replace('_', ' ')} is {'enabled' if on else 'disabled'}, {config.USER_NAME}."
+
+    def run_all_tests(self):
+        """Regression: har enabled skill ke apne TESTS sandbox mein. [(name, ok, error)]"""
+        out = []
+        for meta in self.list():
+            if meta.get("enabled"):
+                res = _sandbox(SKILLS_DIR / meta["name"] / f"v{meta['version']}.py", "test")
+                out.append((meta["name"], bool(res.get("ok")), res.get("error") or ""))
+        return out
 
     def describe(self):
         items = self.list()
