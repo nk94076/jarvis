@@ -618,8 +618,10 @@ def help_text(cmd, s):
             "control volume, music and brightness, take screenshots, tell battery and system status, set timers, "
             "reminders and alarms, calculate, tell jokes, news, weather and time, search Google, YouTube and "
             "Wikipedia, keep a todo list, remember things about you, read and copy clipboard, type for you, "
-            "find files, open WhatsApp and Gmail, lock, sleep or shut down the laptop, and learn new topics "
-            "from the internet.")
+            "find files, open WhatsApp and Gmail, lock, sleep or shut down the laptop, learn subjects from the "
+            "internet and test myself, build new skills, research, make landing pages, audit websites, write and run "
+            "code, read your email and calendar, work with GitHub, databases, servers and smart home devices, look "
+            "through the camera, run scheduled tasks, and you can even talk to me from your phone.")
 
 
 # Order matters: pehle specific, baad mein general

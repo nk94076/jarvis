@@ -345,6 +345,9 @@ class Skills:
         s = config.USER_NAME
         if any(w in cmd for w in ["bye", "exit", "goodbye"]) or cmd.strip() in ("band ho jao", "jarvis band ho jao"):
             return None
+        helped = extra.help_text(cmd, s)            # "what can you do" sawaal hai, par jawab skills list hai
+        if helped:
+            return helped
         # sawaal jaisa vaakya? pehle samjho ki ye order hai ya sawaal (koi adhoora kaam pending na ho tab)
         if not self.pending and intent.ambiguous(cmd) and intent.classify(cmd) == "question":
             return self.chat(cmd)
