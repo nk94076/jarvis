@@ -445,6 +445,24 @@ class Skills:
             selfimprove.record(cmd, reply, ok=not reply.startswith(("Sorry", "ERROR")), gap=gap)
         return reply
 
+    def learn_many(self, text):
+        """'seekho: python, php, hindi language, google ads' -> sab learning list mein."""
+        from .learner import valid_subject
+        s = config.USER_NAME
+        items = [" ".join(p.split()) for p in re.split(r",|;|\n|\baur\b|\band\b", text)]
+        good = [p for p in items if p and valid_subject(p)]
+        bad = [p for p in items if p and not valid_subject(p)]
+        if not good:
+            return f"{s}, I could not understand the list. Separate subjects with commas, like: seekho: python, php, java."
+        for g in good:
+            self.learner.start(g)
+        msg = (f"Okay {s}, I have added {len(good)} subjects to my learning list and started learning them one by one "
+               f"in the background: {', '.join(good[:8])}{' and more' if len(good) > 8 else ''}. "
+               f"Say 'learning status' any time to check progress.")
+        if bad:
+            msg += f" I skipped these because they were not clear subjects: {', '.join(bad[:5])}."
+        return msg
+
     def learning(self, cmd):
         """Seekhne se jude saare commands. Match na ho to None."""
         s = config.USER_NAME
@@ -466,6 +484,9 @@ class Skills:
                       r"(.+?)\s+(?:ko\s+)?learning (?:list )?se (?:hatao|hata do|remove karo)", cmd)
         if m:
             return self.learner.remove((m.group(1) or m.group(2)).strip())
+        m = re.search(r"(?:seekho|sikho|seekh lo|sikh lo|learn|sikhna hai|seekhna hai|padho)\s*(?:ye sab|sab)?\s*[:\-]\s*(.+)", cmd)
+        if m and ("," in m.group(1) or ";" in m.group(1)):
+            return self.learn_many(m.group(1))
         if re.search(r"\b(seekho|sikho|sikhao|seekhao|seekh lo|sikh lo|learn karo|learn kar lo|learn karna (start|shuru)|"
                      r"(seekhna|sikhna|sikhana|seekhana|padhna|learning) (start|shuru)|start learning|learn about)\b|^learn\s", cmd):
             subject = subject_from(cmd)
