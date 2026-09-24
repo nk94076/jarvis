@@ -221,6 +221,9 @@ class Skills:
         topic = subject_from(topic.group(1)) if topic else ""
         if topic and len(topic.split()) <= 4 and topic not in ("khud", "apne"):
             report.append(self.learner.start(topic).split(".")[0] + ".")
+        elif self.learner.state.get("queue"):
+            self.learner.resume()
+            report.append(f"I am already learning {', '.join(self.learner.state['queue'][:3])} from the internet.")
         elif self.learner.state.get("subjects"):
             self.learner.upgrade()
             report.append("I am refreshing everything I have learnt with the latest information from the internet.")
@@ -423,7 +426,12 @@ class Skills:
                 f"You are {'CONNECTED to the internet right now' if online else 'OFFLINE right now (no internet)'}. "
                 "YES, you can use the internet: Google/web search, reading websites, deep research reports, news, "
                 "weather, Wikipedia, learning whole subjects, controlling a real browser (Playwright) and testing "
-                "websites. You are male: in Hindi/Hinglish always use masculine forms (kar sakta hoon, main karta hoon). "
+                "websites. YES, you can learn by yourself and upgrade yourself: learn whole subjects from the internet "
+                "and test yourself with quizzes ('python seekho'), build new skills for things you could not do "
+                "('apni kamiyan door karo'), and safely improve your own code after the user approves "
+                "('apna code upgrade karo taaki ...', 'internet se seekho aur khud ko smart banao'). "
+                f"Learning status right now: {self.learner.status()} "
+                "You are male: in Hindi/Hinglish always use masculine forms (kar sakta hoon, main karta hoon). "
                 "Learning runs in the background only while JARVIS is running. "
                 "If the user closes JARVIS, learning pauses and automatically continues from the same chapter "
                 "next time JARVIS starts. Nothing learnt is lost; memory is deleted only if the user says "

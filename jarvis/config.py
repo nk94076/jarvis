@@ -1,7 +1,7 @@
 """JARVIS ki settings. Yahan badlav karke JARVIS ko customize karo."""
 from pathlib import Path
 
-VERSION = "9.1"
+VERSION = "9.2"
 
 USER_NAME = "Sir"
 OLLAMA_MODEL = "qwen2.5:3b"          # 16GB RAM ho to "llama3.1:8b"
@@ -67,6 +67,11 @@ CONTACTS = {
 EMAILS = {
     # "boss": "boss@example.com",
 }
+# Mic aksar ye shabd galat sunta hai: galat -> sahi (apne shabd my_settings.py mein jodo)
+SPEECH_FIXES = {"paidal": "python", "payton": "python", "pithon": "python", "paython": "python",
+                "jarwis": "jarvis", "service": "jarvis", "jar vis": "jarvis", "java script": "javascript",
+                "php ": "php ", "you tube": "youtube", "what's app": "whatsapp", "note pad": "notepad",
+                "g mail": "gmail", "chat gpt": "chatgpt", "bnao": "banao", "banado": "bana do"}
 SLEEP_WORDS = ["so jao", "sleep", "go to sleep", "standby", "chup ho jao"]
 
 def _migrate_old_data():

@@ -249,8 +249,9 @@ class Voice:
             self.vosk.AcceptWaveform(raw)
             text = json.loads(self.vosk.FinalResult()).get("text", "")
         if text:
+            text = fix_speech(text.lower())
             print(f"Aap: {text}")
-            return text.lower()
+            return text
         return None
 
     def listen_for_stop(self, done):
@@ -280,6 +281,15 @@ class Voice:
             if is_stop(text):
                 print(f"Aap: {text}  [STOP]")
                 self.stop.set()
+
+
+def fix_speech(text):
+    """Mic ke aam galat sune shabd theek karo ('tumne paidal sikh liya' -> 'tumne python sikh liya')."""
+    import re as _re
+    for wrong, right in config.SPEECH_FIXES.items():
+        w = wrong.strip()
+        text = _re.sub(rf"\b{_re.escape(w)}\b", right.strip(), text)
+    return text
 
 
 def is_stop(text):
