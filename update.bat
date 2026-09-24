@@ -29,7 +29,9 @@ if exist .venv (
     for /f "usebackq delims=" %%p in ("requirements.txt") do pip install -q --no-cache-dir %%p
     python -m playwright install chromium >nul 2>&1
 )
-echo [4/4] Naye version ka test (regression test)...
+echo [4/4] JARVIS ke apne code sudhaar dobara laga raha hoon...
+python -m jarvis.selfcode --reapply
+echo      Naye version ka test (regression test)...
 python -m jarvis.selftest
 if errorlevel 1 (
     echo.

@@ -14,7 +14,7 @@ def available():
     return bool(getattr(config, "ANTHROPIC_API_KEY", ""))
 
 
-def chat(messages):
+def chat(messages, max_tokens=4000):
     """messages: [{"role": "system"/"user"/"assistant", "content": str}] -> reply text."""
     global _client
     import anthropic
@@ -28,10 +28,10 @@ def chat(messages):
     # Refusal par server khud dusre model par chala deta hai (fallbacks="default")
     response = _client.beta.messages.create(
         model=config.CLAUDE_MODEL,
-        max_tokens=4000,
+        max_tokens=max_tokens,
         system=system or anthropic.NOT_GIVEN,
         messages=convo,
-        output_config={"effort": "low"},                 # baatcheet: tez aur sasta
+        output_config={"effort": "low" if max_tokens <= 4000 else "medium"},   # baatcheet tez; website jaise bade kaam mein zyada soch
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
     )

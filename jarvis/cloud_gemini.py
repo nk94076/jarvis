@@ -12,7 +12,7 @@ def available():
     return bool(getattr(config, "GEMINI_API_KEY", ""))
 
 
-def chat(messages):
+def chat(messages, max_tokens=None):
     import requests
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
     contents = [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}

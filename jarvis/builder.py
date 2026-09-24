@@ -246,3 +246,142 @@ def build(cmd, llm, open_browser=True):
         webbrowser.open(path.as_uri())
     return path, (f"{s}, your landing page for {topic} is ready. I have opened it in the browser and saved it in "
                   f"Documents, JARVIS Projects, {folder.name}.")
+
+
+# ======================= CUSTOM PAGE: jo aap bolo wahi =======================
+LAST_FILE = config.DATA_DIR / "last_page.txt"
+DESIGN_RULES = """Rules:
+- ONE complete HTML file: <!DOCTYPE html> ... </html>. All CSS inside <style>, all JS inside <script>. No build tools.
+- Follow the user's request EXACTLY: their sections, order, text, colours, style, language, fonts, mood.
+  Do not add a generic template look; design it specifically for this request.
+- Modern, polished, responsive (mobile first, works at 360px and 1440px), semantic HTML, accessible (alt text, labels).
+- Real, specific content for the topic (no lorem ipsum). Images: use https://picsum.photos/seed/<word>/1200/800 or
+  inline SVG; icons as inline SVG or emoji. Google Fonts allowed.
+- Smooth small animations/hover effects are welcome. Forms should work client-side (show a thank-you message).
+Reply with ONLY the HTML in one ```html code block."""
+
+
+def _extract_html(text):
+    m = re.search(r"```(?:html)?\s*(<!DOCTYPE.*?</html>)\s*```", text, re.S | re.I) or \
+        re.search(r"(<!DOCTYPE.*</html>)", text, re.S | re.I) or re.search(r"(<html.*</html>)", text, re.S | re.I)
+    return m.group(1).strip() if m else ""
+
+
+def _check_html(page_html, path):
+    """Problems ki list: toota HTML, JS errors, khali page. Browser (Playwright) ho to usme khol kar."""
+    problems = []
+    low = page_html.lower()
+    for tag in ("<body", "</body>", "</html>", "<style"):
+        if tag not in low:
+            problems.append(f"missing {tag}")
+    if len(re.sub(r"<[^>]+>", "", page_html)) < 300:
+        problems.append("page has almost no visible text")
+    try:
+        from . import browser
+        res = browser._w().do(lambda w: _probe(w, path), timeout=60)
+        if isinstance(res, dict):
+            problems += [f"JavaScript error: {e}" for e in res["errors"][:5]]
+            if res["overflow"]:
+                problems.append("page is wider than a phone screen (horizontal scroll on mobile)")
+            if res["text"] < 200:
+                problems.append("page shows almost no text in the browser")
+    except Exception:
+        pass
+    return problems
+
+
+def _probe(w, path):
+    p = w.page
+    errors = []
+    p.on("pageerror", lambda e: errors.append(str(e)[:150]))
+    p.set_viewport_size({"width": 390, "height": 844})
+    p.goto(Path(path).as_uri(), wait_until="load", timeout=30000)
+    overflow = p.evaluate("document.documentElement.scrollWidth > window.innerWidth + 5")
+    text = len(p.inner_text("body"))
+    p.set_viewport_size({"width": 1366, "height": 800})
+    return {"errors": errors, "overflow": overflow, "text": text}
+
+
+def _gen(prompt, chat):
+    r = chat([{"role": "user", "content": prompt}], max_tokens=12000)
+    return _extract_html(r["message"]["content"])
+
+
+def build_custom(cmd, chat=None, open_browser=True):
+    """Aapki baat ke hisaab se poora naya page. 2 baar tak khud jaanch-sudhaar. Fail ho to template."""
+    from .llm_client import chat as default_chat
+    chat = chat or default_chat
+    s = config.USER_NAME
+    topic = topic_from(cmd) or "website"
+    words = [w for w in topic.split() if w not in {"mere", "meri", "mera", "jisme", "jismein", "jis", "ho", "hai", "aur",
+                                                    "brown", "dark", "light", "theme", "menu", "timing", "style", "wali"}]
+    name = " ".join(words[:3]) or "website"
+    folder = PROJECTS_DIR / re.sub(r"[^a-zA-Z0-9 -]", "", name).strip().title()[:40]
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "index.html"
+    page = _gen(f"Build this web page for the user.\nUser's request (may be Hinglish): {cmd}\n\n{DESIGN_RULES}", chat)
+    for _ in range(2):
+        if not page:
+            break
+        path.write_text(page, encoding="utf-8")
+        problems = _check_html(page, path)
+        if not problems:
+            break
+        fixed = _gen(f"This HTML page has problems: {'; '.join(problems)}.\nFix them and keep everything else the same.\n"
+                     f"User's original request: {cmd}\n\n```html\n{page[:30000]}\n```\n\n{DESIGN_RULES}", chat)
+        page = fixed or page
+    if not page:                                  # AI achha HTML nahi likh paya: template backup
+        from .agent import llm
+        p, msg = build(cmd, llm, open_browser)
+        LAST_FILE.write_text(str(p), encoding="utf-8")
+        return msg + " (I used my basic template because the AI could not write a custom page this time.)"
+    path.write_text(page, encoding="utf-8")
+    LAST_FILE.write_text(str(path), encoding="utf-8")
+    if open_browser:
+        webbrowser.open(path.as_uri())
+    return (f"{s}, I designed a custom page exactly as you asked and opened it. It is saved in Documents, JARVIS "
+            f"Projects, {folder.name}. Tell me any change, like: page mein pricing section jodo, or colour blue karo.")
+
+
+EDIT_WORDS = re.compile(r"\b(page|website|site|landing)\b.*\b(jodo|add|badlo|change|hatao|remove|karo|kar do|bada|chhota|"
+                        r"lagao|update|replace|fix|theek)\b|\b(pricing|header|footer|section|button|colou?r|rang|font|logo|"
+                        r"menu|navbar|image|photo)\b.*\b(jodo|add|badlo|change|hatao|remove|lagao|karo|kar do)\b")
+
+
+def wants_edit(cmd):
+    return LAST_FILE.exists() and bool(EDIT_WORDS.search(cmd)) and not MAKE.search(cmd.replace("kar do", ""))
+
+
+def edit_page(cmd, chat=None, open_browser=True):
+    """Pichhle page mein badlav: purana version index_v1.html... ke roop mein sambhal kar."""
+    from .llm_client import chat as default_chat
+    chat = chat or default_chat
+    s = config.USER_NAME
+    path = Path(LAST_FILE.read_text(encoding="utf-8").strip())
+    if not path.exists():
+        return f"{s}, I could not find the last page. Ask me to make a new one."
+    old = path.read_text(encoding="utf-8")
+    n = len(list(path.parent.glob("index_v*.html"))) + 1
+    (path.parent / f"index_v{n}.html").write_text(old, encoding="utf-8")
+    page = _gen(f"Change this web page as the user asks. Keep everything else exactly the same.\nChange (may be "
+                f"Hinglish): {cmd}\n\n```html\n{old[:30000]}\n```\n\n{DESIGN_RULES}", chat)
+    if not page:
+        return f"Sorry {s}, I could not make that change. The page is unchanged."
+    path.write_text(page, encoding="utf-8")
+    if open_browser:
+        webbrowser.open(path.as_uri())
+    return (f"Done {s}, I changed the page and opened it. The old version is saved as index_v{n}.html. "
+            f"Say 'page undo' to go back.")
+
+
+def undo_page():
+    s = config.USER_NAME
+    if not LAST_FILE.exists():
+        return f"{s}, there is no page to undo."
+    path = Path(LAST_FILE.read_text(encoding="utf-8").strip())
+    versions = sorted(path.parent.glob("index_v*.html"), key=lambda p: int(re.sub(r"\D", "", p.stem) or 0))
+    if not versions:
+        return f"{s}, there is no older version of this page."
+    versions[-1].replace(path)
+    webbrowser.open(path.as_uri())
+    return f"Done {s}, the page is back to the previous version."

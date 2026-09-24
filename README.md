@@ -133,7 +133,15 @@ Suraksha: `security.py`, `selftest.py`, `sandbox.py` aur `selfcode.py` ko JARVIS
 - Aapki memory, knowledge aur settings `C:\Users\<aap>\JARVIS Data` mein safe rehti hain.
 - Apni settings (naam, contacts, projects, model) **`JARVIS Data\my_settings.py`** mein likho. Ye update par nahi mitti.
 
-## 🌐 Website Builder
+## 🌐 Website Builder (v9.8: jo aap bolo wahi)
+
+- `mere chai shop ke liye dark brown theme wali website banao jisme menu, timing aur contact form ho`
+  → AI aapki baat ke hisaab se **poora naya design** likhta hai (template nahi), browser mein khol kar JS errors aur
+  mobile layout jaanchta hai, galti ho to khud theek karta hai.
+- `page mein pricing section jodo`, `rang blue karo`, `header mein logo lagao` → pichhle page mein badlav (purana version `index_v1.html`...)
+- `page undo` → pichla version
+
+## 🌐 Website Builder (purana template)
 
 Bolo: *"gym ke liye HTML landing page banao"*, *"coffee shop ki website banao red color mein"*.
 JARVIS content likhta hai, sundar responsive page banata hai, browser mein kholta hai aur

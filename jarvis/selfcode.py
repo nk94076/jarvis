@@ -123,12 +123,12 @@ class SelfCoder:
             if not ok:
                 last_error = "Tests failed:\n" + out
                 continue
-            return self._review_and_apply(plan.get("summary", request), touched, stage)
+            return self._review_and_apply(plan.get("summary", request), touched, stage, edits)
         from . import selfimprove
         selfimprove.add_lesson(f"self code upgrade: {request}", f"Could not make a passing change: {last_error[:200]}")
         return f"Sorry {s}, I tried 3 times but could not make a change that passes all my tests, so I changed nothing."
 
-    def _review_and_apply(self, summary, touched, stage):
+    def _review_and_apply(self, summary, touched, stage, edits=()):
         s = config.USER_NAME
         diff = []
         for rel in touched:
@@ -151,10 +151,59 @@ class SelfCoder:
             shutil.copy2(ROOT / rel, backup / rel)
             shutil.copy2(stage / rel, ROOT / rel)
         (backup / "summary.txt").write_text(summary, encoding="utf-8")
+        save_patch(summary, edits, backup.name)
         from . import selfimprove
         selfimprove.record(f"self code upgrade: {summary}", "applied")
         return (f"Done {s}. I upgraded my own code: {summary}. Please restart me to use it. If anything goes wrong, "
                 f"say: self upgrade undo.")
+
+
+PATCHES = WORK / "patches.json"
+
+
+def load_patches():
+    try:
+        return json.loads(PATCHES.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def save_patch(summary, edits, backup_name):
+    """Har laga hua sudhaar patch ki tarah save: update ke baad dobara lagane ke liye."""
+    WORK.mkdir(parents=True, exist_ok=True)
+    items = load_patches() + [{"summary": summary, "edits": list(edits), "backup": backup_name,
+                               "time": datetime.now().strftime("%Y-%m-%d %H:%M")}]
+    PATCHES.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def reapply_all():
+    """update.bat ke baad: JARVIS ke apne sudhaar naye code par dobara. (applied, already, conflicts)"""
+    applied, already, conflicts = [], [], []
+    for p in load_patches():
+        ok_all, todo = True, []
+        for e in p["edits"]:
+            rel = str(e.get("file", "")).replace("\\", "/")
+            path = ROOT / rel
+            if rel in PROTECTED or not path.exists():
+                ok_all = False
+                break
+            text = path.read_text(encoding="utf-8")
+            if e.get("replace") and e["replace"] in text:
+                continue                               # pehle se laga hua
+            if text.count(e.get("find", "")) != 1:
+                ok_all = False                         # mera naya code wahi hissa badal chuka: takraav
+                break
+            todo.append((path, e))
+        if not ok_all:
+            conflicts.append(p["summary"])
+            continue
+        if not todo:
+            already.append(p["summary"])
+            continue
+        for path, e in todo:
+            path.write_text(path.read_text(encoding="utf-8").replace(e["find"], e["replace"], 1), encoding="utf-8")
+        applied.append(p["summary"])
+    return applied, already, conflicts
 
 
 def undo():
@@ -167,4 +216,14 @@ def undo():
     for f in last.rglob("*.py"):
         shutil.copy2(f, ROOT / f.relative_to(last))
     shutil.rmtree(last)
+    items = [p for p in load_patches() if p.get("backup") != last.name]   # undo kiya patch dobara na lage
+    PATCHES.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
     return f"Done {s}. I restored my code from before the last self upgrade. Please restart me."
+
+
+if __name__ == "__main__":                            # update.bat: python -m jarvis.selfcode --reapply
+    if "--reapply" in sys.argv:
+        a, al, c = reapply_all()
+        print(f"   JARVIS ke apne sudhaar: {len(a)} dobara lagaye, {len(al)} pehle se the, {len(c)} takraaye (chhode)")
+        for x in c:
+            print("     chhoda (naye code se takraav):", x)

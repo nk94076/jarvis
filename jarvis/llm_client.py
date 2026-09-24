@@ -52,18 +52,19 @@ def cloud_provider():
     return prov
 
 
-def chat(messages, model=None, tools=None):
+def chat(messages, model=None, tools=None, max_tokens=None):
     """Tools wale (agent) calls hamesha local; baaki: cloud (agar set hai) warna local."""
     if not tools:
         prov = cloud_provider()
         if prov:
             try:
-                return {"message": {"content": prov.chat(messages)}}
+                return {"message": {"content": prov.chat(messages, max_tokens) if max_tokens else prov.chat(messages)}}
             except Exception as e:
                 print(f"[brain] Cloud AI fail ({type(e).__name__}: {str(e)[:120]}), local dimaag use kar raha hoon.")
     import ollama
     kwargs = {"model": pick(model or config.OLLAMA_MODEL), "messages": messages, "keep_alive": config.KEEP_ALIVE,
-              "options": {"temperature": config.TEMPERATURE, "num_ctx": config.CONTEXT_SIZE}}
+              "options": {"temperature": config.TEMPERATURE, "num_ctx": max(config.CONTEXT_SIZE, 16384 if max_tokens else 0),
+                          **({"num_predict": max_tokens} if max_tokens else {})}}
     if tools:
         kwargs["tools"] = tools
     r = ollama.chat(**kwargs)

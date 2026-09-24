@@ -342,8 +342,7 @@ def t_check_project(repo):
       {"topic": ("string", "page kis baare mein ho, rang bhi likh sakte ho jaise 'gym red'")})
 def t_build_page(topic):
     from . import builder
-    path, msg = builder.build(f"landing page banao {topic}", llm)
-    return f"{msg} FILE: {path}"
+    return builder.build_custom(f"landing page banao {topic}")
 
 
 @tool("run_jarvis_command", "JARVIS ki koi bhi seedhi command chalao: apps kholna/band karna, volume, screenshot, "

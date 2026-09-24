@@ -648,8 +648,12 @@ class Skills:
             return jawab
 
         # ---- website / landing page banana ----
+        if re.search(r"page undo|website undo|pichla (page|design)", cmd):
+            return builder.undo_page()
         if builder.wants_page(cmd):
-            return builder.build(cmd, agent_mod.llm)[1]
+            return builder.build_custom(cmd)            # aap jo bolo wahi (template sirf backup)
+        if builder.wants_edit(cmd):
+            return builder.edit_page(cmd)
 
         # ---- seekhna ----
         jawab = self.learning(cmd)
